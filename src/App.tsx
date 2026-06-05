@@ -935,7 +935,7 @@ export default function App() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white font-mono"
-                    placeholder="e.g. hamxak441@gmail.com"
+                    placeholder="e.g. user@converthub.com"
                     required
                   />
                 </div>
@@ -1108,13 +1108,7 @@ export default function App() {
                 </>
               )}
 
-              {/* Helper text instructions panel */}
-              {authTab === 'login' && (
-                <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850 text-[10px] text-slate-500 leading-normal">
-                  <span className="font-bold text-slate-700 dark:text-slate-350 block mb-1">Neon Test Seed Credentials:</span>
-                  Admin user: <strong className="font-mono text-blue-600 select-all">hamxak441@gmail.com</strong> (Registered Name: <strong>Amir Khan</strong>), Password key: <strong className="font-mono text-blue-600 select-all">Ammir$1298</strong>.
-                </div>
-              )}
+              {/* Helper text instructions panel omitted */}
 
             </form>
           </div>
