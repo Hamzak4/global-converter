@@ -1,0 +1,6 @@
+{
+  "name": "GlobalConverter",
+  "description": "GlobalConverter is a global unit, currency, and multi-calculator platform designed for users worldwide, optimized for SEO, and supporting simple PHP exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

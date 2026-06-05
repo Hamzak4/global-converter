@@ -1,0 +1,495 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password_hash": "admin123",
+      "role": "admin",
+      "name": "ConvertHub Admin"
+    },
+    {
+      "id": 2,
+      "username": "hamxak441@gmail.com",
+      "password_hash": "Ammir$1298",
+      "role": "admin",
+      "name": "Hamxa Admin"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Measurement Units",
+      "slug": "measurement-units"
+    },
+    {
+      "id": 2,
+      "name": "Real Estate & Land",
+      "slug": "real-estate-and-land"
+    },
+    {
+      "id": 3,
+      "name": "Financial Math",
+      "slug": "financial-math"
+    },
+    {
+      "id": 4,
+      "name": "Currency News",
+      "slug": "currency-news"
+    }
+  ],
+  "articles": [
+    {
+      "id": 1,
+      "title": "How many square feet in one acre?",
+      "slug": "how-many-square-feet-in-one-acre",
+      "category_id": 2,
+      "meta_title": "How Many Square Feet in One Acre? (43,560 Sq Ft Guide & Formula)",
+      "meta_description": "Discover exactly how many square feet are in one acre of land. Learn the history of the acre, the mathematical formula to convert acres to square feet, and explore regional variations.",
+      "image_url": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80",
+      "views": 1254,
+      "is_seo_page": true,
+      "created_at": "2026-05-15T00:00:00.000Z",
+      "content": "An acre is a standard unit of area measurement used predominantly in the United States, United Kingdom, and various Commonwealth countries.\n\n### The Direct Answer:\n**1 Acre = 43,560 Square Feet.**\n\n### Formula for Conversion\nTo convert acres to square feet, you multiply the number of acres by 43,560:\n$$\\text{Square Feet} = \\text{Acres} \\times 43,560$$\n\nTo convert square feet to acres, divide the square feet by 43,560:\n$$\\text{Acres} = \\frac{\\text{Square Feet}}{43,560}$$\n\n### Practical Example\nIf you own **2.5 acres** of land, you can calculate the square footage as follows:\n$$\\text{Square Feet} = 2.5 \\times 43,560 = 108,900 \\text{ sq ft}$$\n\nThis represents exactly 108,900 square feet of total ground area.",
+      "formula": "Square Feet = Acres * 43,560",
+      "example": "2.5 Acres * 43,560 = 108,900 Square Feet"
+    },
+    {
+      "id": 2,
+      "title": "What is a Marla? (Understanding South Asian Land Units)",
+      "slug": "what-is-a-marla",
+      "category_id": 2,
+      "meta_title": "What is a Marla? Pakistani and Indian land measurement guides",
+      "meta_description": "An in-depth guide to understanding the Marla - a traditional land unit in Pakistan and parts of Northern India, including its size in square feet (225 vs 272.25).",
+      "image_url": "https://images.unsplash.com/photo-1582407947304-fd86f028f716?auto=format&fit=crop&w=800&q=80",
+      "views": 940,
+      "is_seo_page": true,
+      "created_at": "2026-05-18T00:00:00.000Z",
+      "content": "The **Marla** is a traditional unit of land area measurement used across South Asia, particularly in Pakistan, Northern India, and Bangladesh.\n\n### Regional Variations of Marla\nThe exact size of a Marla varies depending on the region:\n1. **Standard Marla (Kashmir/Rawalpindi/GCP Registry)**: Commonly calculated as **272.25 square feet**. This scale is based on a \"Karam\" length of 5.5 feet.\n2. **Traditional/Lahore Marla**: Locally used in corporate development and private housing as **225 square feet**. This is based on a \"Karam\" length of 5 feet.\n\n### How Many Marlas in a Kanal?\nIn all regional calculations, **1 Kanal is equal to exactly 20 Marlas**.\n- At 225 sq ft/Marla, a Kanal is **4,500 square feet**.\n- At 272.25 sq ft/Marla, a Kanal is **5,445 square feet**.\n\n### Formula to Convert Marla to Square Feet (Standard)\n$$\\text{Square Feet} = \\text{Marlas} \\times 272.25$$\n\n### Example Conversion\nTo find the area of **5 Marlas** (Standard size):\n$$\\text{Square Feet} = 5 \\times 272.25 = 1,361.25 \\text{ square feet}$$",
+      "formula": "Square Feet = Marla * 272.25 (or 225 for Lahore)",
+      "example": "5 Marlas * 272.25 = 1,361.25 Square Feet"
+    },
+    {
+      "id": 3,
+      "title": "How to convert Celsius to Fahrenheit?",
+      "slug": "how-to-convert-celsius-to-fahrenheit",
+      "category_id": 1,
+      "meta_title": "How to Convert Celsius to Fahrenheit: Easy Formula and Examples",
+      "meta_description": "Master the conversion between Celsius and Fahrenheit temperature scales. Memorize the formula, follow step-by-step examples, and review dynamic FAQs.",
+      "image_url": "https://images.unsplash.com/photo-1517483000871-1dbf64a6e1c6?auto=format&fit=crop&w=800&q=80",
+      "views": 815,
+      "is_seo_page": true,
+      "created_at": "2026-05-20T00:00:00.000Z",
+      "content": "Converting units of temperature between Celsius (developed by Anders Celsius) and Fahrenheit (developed by Daniel Gabriel Fahrenheit) is one of the most common equations in physics and daily life.\n\n### The Conversion Formula\nTo change degrees Celsius ($^\\circ$C) to degrees Fahrenheit ($^\\circ$F), use the mathematical formula:\n$$F = \\left( C \\times \\frac{9}{5} \\right) + 32$$\n\nWhich can also be written in decimal format:\n$$F = (C \\times 1.8) + 32$$\n\n### To Convert Back (Fahrenheit to Celsius):\n$$C = (F - 32) \\times \\frac{5}{9}$$\n\n### Step-by-Step Example\nLet us convert a normal human body temperature of **$37^\\circ$C** into Fahrenheit:\n1. Multiply Celsius temperature by 1.8:\n   $$37 \\times 1.8 = 66.6$$\n2. Add 32 to the result:\n   $$66.6 + 32 = 98.6^\\circ\\text{F}$$\n\nTherefore, $37^\\circ$C is exactly equal to $98.6^\\circ$F.",
+      "formula": "Fahrenheit = (Celsius * 1.8) + 32",
+      "example": "(37°C * 1.8) + 32 = 98.6°F"
+    },
+    {
+      "id": 4,
+      "title": "How many kilometers in a mile?",
+      "slug": "how-many-kilometers-in-a-mile",
+      "category_id": 1,
+      "meta_title": "How many Kilometers in a Mile? (1.60934 Km Practical Guide)",
+      "meta_description": "An SEO optimized explanation of the relationship between miles and kilometers, complete with conversion tables, history, and answering popular search queries.",
+      "image_url": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80",
+      "views": 651,
+      "is_seo_page": true,
+      "created_at": "2026-05-22T00:00:00.000Z",
+      "content": "Miles and kilometers are the two most popular linear distance measurement scales in the modern world. While the Kilometer belongs to the metric SI standard, the Mile is an Imperial standard.\n\n### The Direct Comparison\n**1 Mile = 1.60934 Kilometers.**\n**1 Kilometer = 0.62137 Miles.**\n\n### Formula to Convert Miles to Kilometers\nTo determine the kilometer equivalence of any distance in miles, multiply the value by 1.60934:\n$$\\text{Kilometers} = \\text{Miles} \\times 1.60934$$\n\n### Step-by-Step Example\nIf a speed limit sign in the US indicates a speed of **60 miles per hour (mph)**, what is the equivalent speed in kilometers per hour:\n$$\\text{Kilometers} = 60 \\times 1.60934 = 96.56 \\text{ km/h}$$",
+      "formula": "Kilometers = Miles * 1.609344",
+      "example": "60 Miles * 1.609344 = 96.56 Kilometers"
+    },
+    {
+      "id": 5,
+      "title": "USD to EUR conversion guide",
+      "slug": "usd-to-eur-conversion-guide",
+      "category_id": 4,
+      "meta_title": "USD to EUR Conversion Guide: Managing exchange rates",
+      "meta_description": "Master exchange rate mechanics and explore our comprehensive guide on converting United States Dollars into Euros, including charts and fee calculations.",
+      "image_url": "https://images.unsplash.com/photo-1502920917128-1aa162744319?auto=format&fit=crop&w=800&q=80",
+      "views": 1120,
+      "is_seo_page": true,
+      "created_at": "2026-05-24T00:00:00.000Z",
+      "content": "The conversion of United States Dollar (USD) to Euro (EUR) is the most heavily traded currency pair in the foreign exchange (forex) market. Together, they represent the largest economic blocs on earth.\n\n### Standard Conversion Mechanics\nCurrency conversions are based on standard variable fractions called exchange rates:\n$$\\text{EUR Value} = \\text{USD Amount} \\times \\text{Exchange Rate}$$\n\nFor example, if the current exchange rate is **0.92**, then 1 USD is worth 0.92 EUR.\n\n### Calculating Costs & Spreads\nWhen exchanging physical cash at airports or banks, you are typically charged a hidden markups rate called \"spread,\" which averages between 1% to 5% of your total balance. To calculate how much net cash you receive:\n$$\\text{Net EUR} = \\text{USD} \\times \\text{Interbank Rate} \\times (1 - \\text{Service Fee \\%})$$\n\n### Example Conversion\nTo exchange **$500 USD** at a flat interbank rate of 0.92, assuming a 1% transfer fee:\n1. Base conversion: $500 \\times 0.92 = 460 \\text{ EUR}$\n2. Subtracting 1% fee ($4.60 EUR$): $460 - 4.60 = 455.40 \\text{ EUR}$ net received.",
+      "formula": "EUR = USD * Exchange Rate",
+      "example": "$500 USD * 0.92 = €460 EUR"
+    }
+  ],
+  "faqs": [
+    {
+      "id": 1,
+      "question": "Is the acre standard size universal?",
+      "answer": "Yes, the international coordinate acre is standard in both US Customary and British Imperial systems, measuring exactly 43,560 square feet.",
+      "parent_type": "tool",
+      "parent_id": "acre-to-sqft"
+    },
+    {
+      "id": 2,
+      "question": "How big is an acre compared to a football field?",
+      "answer": "A standard American football field (including endzones) is about 1.32 acres. Without endzones, it is very close to 1.1 acres.",
+      "parent_type": "tool",
+      "parent_id": "acre-to-sqft"
+    },
+    {
+      "id": 3,
+      "question": "What is the standard size of a Marla in land registries?",
+      "answer": "Historically, the standard revenue registry Marla equals 272.25 square feet, but city planning departments and developers in metropolitan cities now calculate a Marla as 225 square feet.",
+      "parent_type": "tool",
+      "parent_id": "what-is-a-marla"
+    },
+    {
+      "id": 4,
+      "question": "Is Celsius used in scientific papers?",
+      "answer": "Yes, Celsius is the metric international standard, although physicists prefer the absolute Kelvin scale for temperature equations.",
+      "parent_type": "tool",
+      "parent_id": "how-to-convert-celsius-to-fahrenheit"
+    },
+    {
+      "id": 5,
+      "question": "What formula does the BMI calculator use?",
+      "answer": "It divides weight in kilograms by height in meters squared (BMI = kg/m²). This acts as a standard body fat estimate.",
+      "parent_type": "tool",
+      "parent_id": "bmi-calc"
+    }
+  ],
+  "exchange_rates": {
+    "base": "USD",
+    "rates": {
+      "USD": 1,
+      "EUR": 0.92,
+      "GBP": 0.78,
+      "INR": 83.35,
+      "PKR": 278.5,
+      "CAD": 1.36,
+      "AUD": 1.5,
+      "JPY": 156.2,
+      "CNY": 7.24,
+      "AED": 3.67,
+      "SAR": 3.75,
+      "ZAR": 18.8,
+      "CHF": 0.9,
+      "TRY": 32.25,
+      "SGD": 1.35,
+      "NZD": 1.63,
+      "HKD": 7.82,
+      "MXN": 17.5,
+      "MYR": 4.71,
+      "BRL": 5.15,
+      "RUB": 90.1,
+      "SEK": 10.5,
+      "NOK": 10.6,
+      "DKK": 6.85,
+      "PLN": 3.95,
+      "THB": 36.5,
+      "IDR": 16220,
+      "HUF": 358.5,
+      "CZK": 22.8,
+      "ILS": 3.72,
+      "CLP": 912,
+      "PHP": 58.6,
+      "BGN": 1.8,
+      "BHD": 0.377,
+      "BND": 1.35,
+      "BOB": 6.9,
+      "COP": 3860,
+      "CRC": 520,
+      "EGP": 47.3,
+      "GHS": 14.8,
+      "HNL": 24.7,
+      "IQD": 1310,
+      "ISK": 138,
+      "JMD": 155,
+      "JOD": 0.709,
+      "KES": 130,
+      "KRW": 1375,
+      "KWD": 0.307,
+      "KZT": 445,
+      "LBP": 89500,
+      "LKR": 300,
+      "MAD": 10.02,
+      "MUR": 46.2,
+      "NPR": 133.5,
+      "OMR": 0.385,
+      "PEN": 3.73,
+      "QAR": 3.64,
+      "RON": 4.58,
+      "RSD": 107.8,
+      "UAH": 40.2,
+      "UYU": 38.8,
+      "VES": 36.5,
+      "VND": 25450,
+      "XAF": 605,
+      "XOF": 605,
+      "ZMW": 26.2
+    },
+    "updated_at": "2026-06-04T10:01:29.745Z"
+  },
+  "conversions": [
+    {
+      "id": 1,
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Centimeter",
+      "from_value": 5,
+      "to_value": 500,
+      "created_at": "2026-06-04T10:01:29.745Z"
+    },
+    {
+      "id": 2,
+      "type": "Area",
+      "from_unit": "Square Meter",
+      "to_unit": "Square Foot",
+      "from_value": 10,
+      "to_value": 107.639,
+      "created_at": "2026-06-04T10:01:29.745Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 1,
+      "to_value": 0.001,
+      "id": 3,
+      "created_at": "2026-06-04T10:12:18.776Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 1,
+      "to_value": 0.001,
+      "id": 4,
+      "created_at": "2026-06-04T10:14:31.948Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 1,
+      "to_value": 0.001,
+      "id": 5,
+      "created_at": "2026-06-04T10:17:24.028Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 1,
+      "to_value": 0.001,
+      "id": 6,
+      "created_at": "2026-06-04T10:21:32.117Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 1,
+      "to_value": 0.001,
+      "id": 7,
+      "created_at": "2026-06-04T10:23:24.757Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 1,
+      "to_value": 0.001,
+      "id": 8,
+      "created_at": "2026-06-04T10:34:52.584Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 1,
+      "to_value": 0.001,
+      "id": 9,
+      "created_at": "2026-06-04T10:35:04.881Z"
+    },
+    {
+      "type": "Length",
+      "from_unit": "Meter",
+      "to_unit": "Kilometer",
+      "from_value": 3,
+      "to_value": 0.003,
+      "id": 10,
+      "created_at": "2026-06-04T10:35:06.874Z"
+    },
+    {
+      "type": "Temperature",
+      "from_unit": "Celsius",
+      "to_unit": "Fahrenheit",
+      "from_value": 3,
+      "to_value": 37.4,
+      "id": 11,
+      "created_at": "2026-06-04T10:35:11.424Z"
+    }
+  ],
+  "visitors": [
+    {
+      "id": 1,
+      "ip": "127.0.0.1",
+      "user_agent": "Mozilla/5.0 Chrome/126",
+      "path": "/",
+      "visited_at": "2026-06-04T10:01:29.745Z"
+    },
+    {
+      "id": 2,
+      "ip": "103.19.49.14",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:12:16.203Z"
+    },
+    {
+      "id": 3,
+      "ip": "103.19.49.14",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:12:16.613Z"
+    },
+    {
+      "id": 4,
+      "ip": "103.19.49.14",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/calculators",
+      "visited_at": "2026-06-04T10:12:56.879Z"
+    },
+    {
+      "id": 5,
+      "ip": "103.19.49.14",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/admin",
+      "visited_at": "2026-06-04T10:13:08.255Z"
+    },
+    {
+      "id": 6,
+      "ip": "103.19.49.13",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:14:31.502Z"
+    },
+    {
+      "id": 7,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:17:21.534Z"
+    },
+    {
+      "id": 8,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:17:21.912Z"
+    },
+    {
+      "id": 9,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/blog",
+      "visited_at": "2026-06-04T10:18:53.298Z"
+    },
+    {
+      "id": 10,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/pages/how-many-square-feet-in-one-acre",
+      "visited_at": "2026-06-04T10:19:00.570Z"
+    },
+    {
+      "id": 11,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/blog",
+      "visited_at": "2026-06-04T10:19:18.897Z"
+    },
+    {
+      "id": 12,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/admin",
+      "visited_at": "2026-06-04T10:19:35.644Z"
+    },
+    {
+      "id": 13,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/legal/contact",
+      "visited_at": "2026-06-04T10:20:08.409Z"
+    },
+    {
+      "id": 14,
+      "ip": "103.19.49.15",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/admin",
+      "visited_at": "2026-06-04T10:21:06.886Z"
+    },
+    {
+      "id": 15,
+      "ip": "103.19.49.15",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/blog",
+      "visited_at": "2026-06-04T10:21:08.838Z"
+    },
+    {
+      "id": 16,
+      "ip": "103.19.49.15",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:21:30.545Z"
+    },
+    {
+      "id": 17,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:23:20.926Z"
+    },
+    {
+      "id": 18,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:23:21.293Z"
+    },
+    {
+      "id": 19,
+      "ip": "103.19.49.12",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/calculators",
+      "visited_at": "2026-06-04T10:27:01.654Z"
+    },
+    {
+      "id": 20,
+      "ip": "103.19.49.13",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:34:50.888Z"
+    },
+    {
+      "id": 21,
+      "ip": "103.19.49.13",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "path": "/",
+      "visited_at": "2026-06-04T10:34:50.890Z"
+    }
+  ],
+  "settings": {
+    "site_name": "GlobalConverter",
+    "site_title": "GlobalConverter - Global Unit, Currency, and Calculator Platform",
+    "meta_description": "GlobalConverter is the ultimate, SEO-friendly mobile-first conversion platform supporting units, land, live international currencies, and advanced financial calculators.",
+    "logo_url": "",
+    "google_analytics_id": "G-XXXXXXXXXX",
+    "ads": {
+      "header": "",
+      "sidebar": "<div class=\"bg-gray-100 dark:bg-zinc-800 border-2 border-dashed border-gray-300 dark:border-zinc-700 h-64 rounded-lg flex items-center justify-center text-xs text-gray-400 font-mono my-4 w-full\">Google AdSense Sidebar Banner (300x250 Large Rectangle)</div>",
+      "between_content": "",
+      "footer": "<div class=\"bg-gray-100 dark:bg-zinc-800 border-2 border-dashed border-gray-300 dark:border-zinc-700 h-20 rounded-lg flex items-center justify-center text-xs text-gray-400 font-mono mt-6 w-full text-center\">Google AdSense Anchor Footer Ad (Responsive Mobile Leaderboard)</div>"
+    },
+    "dark_mode_enabled": false,
+    "default_lang": "en",
+    "company_name": "GlobalConverter Inc.",
+    "company_phone": "+1 (800) 555-0199",
+    "company_email": "support@globalconverter.com",
+    "company_address": "Silicon Valley, California, USA"
+  }
+}
