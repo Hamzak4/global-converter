@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { translations } from './data';
 import { SiteSettings, Article, FAQ, VisitorLog, ConversionLog } from './types';
 import { Header } from './components/Header';
@@ -644,6 +645,7 @@ export default function App() {
         </div>
       )}
 
+      <Analytics />
     </div>
   );
 }
