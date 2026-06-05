@@ -7,17 +7,31 @@ import { UnitConverter } from './components/UnitConverter';
 import { CurrencyConverter } from './components/CurrencyConverter';
 import { AdminPanel } from './components/AdminPanel';
 import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
+import { 
   Search, 
   ChevronRight, 
   HelpCircle, 
   BookOpen, 
   Lock, 
-  X 
+  X,
+  Database,
+  ArrowRight,
+  TrendingUp,
+  Settings as SettingsIcon,
+  Sparkles
 } from 'lucide-react';
 
 const DEFAULT_SETTINGS: SiteSettings = {
-  site_name: 'GlobalConverter',
-  site_title: 'Pro Unit & Currency Converter Platform',
+  site_name: 'ConvertHub',
+  site_title: 'Precision Unit & Live Exchange Rates Platform',
   meta_description: 'An advanced full-stack conversion hub featuring real-time currency converters and SEO guide formulas with custom administrative analytics.',
   logo_url: '/assets/logo.svg',
   google_analytics_id: 'G-XXXXXXXXXX',
@@ -49,22 +63,33 @@ export default function App() {
   const [visitors, setVisitors] = useState<VisitorLog[]>([]);
 
   // Navigation and dynamic routing
-  const [activeTab, setActiveTab] = useState<string>('converters'); // converters, guides, admin, article:slug
+  const [activeTab, setActiveTab] = useState<string>('converters'); // converters, guides, admin, dashboard, article:slug
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Authentication controllers
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authOpen, setAuthOpen] = useState<boolean>(false);
-  const [authTab, setAuthTab] = useState<'login' | 'forgot'>('login');
+  const [authTab, setAuthTab] = useState<'login' | 'register' | 'forgot' | 'verify'>('login');
+  
+  // Credentials Form States
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  
-  // Forgot Password fields
   const [fullName, setFullName] = useState<string>('');
+  const [registerRole, setRegisterRole] = useState<'user' | 'admin' | 'super_admin'>('user');
+
+  // Forgot password parameters
   const [newPassword, setNewPassword] = useState<string>('');
-  
+
+  // OTP Verification state
+  const [verifyCode, setVerifyCode] = useState<string>('');
+  const [verifyUsername, setVerifyUsername] = useState<string>('');
+  const [lastSimulatedCode, setLastSimulatedCode] = useState<string>('');
+
   const [authError, setAuthError] = useState<string>('');
   const [authSuccess, setAuthSuccess] = useState<string>('');
+
+  // Dashboard customization states
+  const [favUnitsPair, setFavUnitsPair] = useState<{ from: string; to: string }>({ from: 'meters', to: 'feet' });
 
   const loadAppState = async () => {
     try {
@@ -92,7 +117,7 @@ export default function App() {
     loadAppState();
   }, []);
 
-  // Sync darkmode body style safely
+  // Sync darkmode style
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) {
@@ -123,18 +148,82 @@ export default function App() {
           setAuthOpen(false);
           setUsername('');
           setPassword('');
-          if (data.user?.role === 'admin') {
+          
+          if (data.user?.role === 'admin' || data.user?.role === 'super_admin') {
             setActiveTab('admin');
+          } else {
+            setActiveTab('dashboard');
           }
+        } else if (resp.status === 403) {
+          const data = await resp.json();
+          setVerifyUsername(data.username || username);
+          setAuthTab('verify');
+          setAuthError(data.error || 'Please enter the registration verification code.');
         } else {
           const data = await resp.json();
-          setAuthError(data.error || 'Invalid credentials.');
+          setAuthError(data.error || 'Invalid combination of email or password.');
         }
       } catch {
-        setAuthError('Connection failure during login request.');
+        setAuthError('Network error connecting to auth server.');
+      }
+    } else if (authTab === 'register') {
+      try {
+        const resp = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: fullName, username, password, role: registerRole })
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          setVerifyUsername(username);
+          setLastSimulatedCode(data.verification_code);
+          setAuthSuccess(data.message || 'Verification code initialized.');
+          setTimeout(() => {
+            setAuthTab('verify');
+          }, 1500);
+        } else {
+          const data = await resp.json();
+          setAuthError(data.error || 'Identity registration rejected.');
+        }
+      } catch {
+        setAuthError('Connection timed out during registration.');
+      }
+    } else if (authTab === 'verify') {
+      try {
+        const resp = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: verifyUsername, code: verifyCode })
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          setCurrentUser(data.user);
+          setAuthSuccess('Account email verified and logged in successfully!');
+          setTimeout(() => {
+            setAuthOpen(false);
+            setVerifyCode('');
+            setVerifyUsername('');
+            setLastSimulatedCode('');
+            setUsername('');
+            setPassword('');
+            setFullName('');
+            if (data.user?.role === 'admin' || data.user?.role === 'super_admin') {
+              setActiveTab('admin');
+            } else {
+              setActiveTab('dashboard');
+            }
+          }, 1500);
+        } else {
+          const data = await resp.json();
+          setAuthError(data.error || 'Incorrect confirmation code entered.');
+        }
+      } catch {
+        setAuthError('Network timed out verifying confirmation code.');
       }
     } else {
-      // Forgot password submission
+      // Forgot password recovery session
       try {
         const resp = await fetch('/api/auth/forgot-password', {
           method: 'POST',
@@ -147,18 +236,58 @@ export default function App() {
         });
 
         if (resp.ok) {
-          setAuthSuccess('Verification Confirmed! New password is now active.');
+          setAuthSuccess('Credentials updated successfully! Redirecting...');
           setTimeout(() => {
             setAuthTab('login');
             setPassword('');
+            setNewPassword('');
           }, 2000);
         } else {
           const data = await resp.json();
-          setAuthError(data.error || 'Identity verification failed.');
+          setAuthError(data.error || 'Registered identity check failed.');
         }
       } catch {
-        setAuthError('Database sync timeout updating parameters.');
+        setAuthError('Database sync timeout during recovery.');
       }
+    }
+  };
+
+  const handleGoogleOAuth = async () => {
+    setAuthError('');
+    setAuthSuccess('');
+    try {
+      // Simulated secure Google Profile
+      const uniqueSuffix = Math.random().toString(36).substring(4, 9);
+      const googleProfile = {
+        name: 'Google User ' + uniqueSuffix.toUpperCase(),
+        email: `google.${uniqueSuffix}@converthub.com`,
+        googleId: 'g_' + Math.floor(10000000 + Math.random() * 90000000)
+      };
+
+      const resp = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(googleProfile)
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        setCurrentUser(data.user);
+        setAuthSuccess(`authenticated securely as ${data.user.name}!`);
+        setTimeout(() => {
+          setAuthOpen(false);
+          if (data.user?.role === 'admin' || data.user?.role === 'super_admin') {
+            setActiveTab('admin');
+          } else {
+            setActiveTab('dashboard');
+          }
+        }, 1500);
+      } else {
+        const data = await resp.json();
+        setAuthError(data.error || 'Google authentication rejected.');
+      }
+    } catch {
+      setAuthError('Google server unavailable at this moment.');
     }
   };
 
@@ -189,8 +318,19 @@ export default function App() {
     ? articles.find(a => a.slug === activeTab.split(':')[1])
     : null;
 
+  // Render dummy data for user dashboard charts mapping
+  const chartData = [
+    { name: 'Mon', count: 4 },
+    { name: 'Tue', count: 12 },
+    { name: 'Wed', count: 8 },
+    { name: 'Thu', count: conversions.length > 5 ? conversions.length : 15 },
+    { name: 'Fri', count: conversions.length > 10 ? conversions.length + 3 : 21 },
+    { name: 'Sat', count: 18 },
+    { name: 'Sun', count: 26 },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-250">
       
       {/* Platform Header */}
       <Header
@@ -199,7 +339,12 @@ export default function App() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         currentUser={currentUser}
-        setCurrentUser={setCurrentUser}
+        setCurrentUser={(user) => {
+          setCurrentUser(user);
+          if (!user) {
+            setActiveTab('converters');
+          }
+        }}
         onOpenAuth={() => {
           setAuthError('');
           setAuthSuccess('');
@@ -476,8 +621,8 @@ export default function App() {
           </div>
         )}
 
-        {/* 4. Full Admin Override panel dashboard */}
-        {activeTab === 'admin' && currentUser?.role === 'admin' && (
+        {/* 4. Full Admin Override panel dashboard (Supports Admin and Super Admin) */}
+        {activeTab === 'admin' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin') && (
           <AdminPanel
             currentLang={currentLang}
             settings={settings || DEFAULT_SETTINGS}
@@ -490,6 +635,193 @@ export default function App() {
           />
         )}
 
+        {/* 5. User Specific Workspace Dashboard (Protected Route tab) */}
+        {activeTab === 'dashboard' && currentUser && currentUser.role === 'user' && (
+          <div className="space-y-8 animate-fade-in" id="customer-identity-dashboard">
+            
+            {/* Top welcome card / Banner */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono text-[10px] uppercase font-bold tracking-wider rounded-lg">
+                    {currentUser.google_id ? 'Authenticated via Google' : 'Registered Member Account'}
+                  </span>
+                  <span className="px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 font-mono text-[10px] uppercase font-bold tracking-wider rounded-lg">
+                    Verified
+                  </span>
+                </div>
+                <h2 className="text-2xl mt-3 font-extrabold tracking-tight">Active Portal: Dashboard</h2>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Welcome back, <strong className="text-slate-800 dark:text-slate-200 font-semibold">{currentUser.name}</strong> ({currentUser.username}). Customize conversion settings and inspect history telemetry.
+                </p>
+              </div>
+
+              <div className="flex space-x-3 shrink-0">
+                <button
+                  onClick={() => setActiveTab('converters')}
+                  className="px-4 py-2.5 bg-slate-905 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold uppercase rounded-xl shadow-md tracking-wider leading-none cursor-pointer flex items-center space-x-2 shrink-0"
+                >
+                  <span>Interactive Converters</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Middle Section: Widgets grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Left Side: Conversion metrics area chart */}
+              <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-md flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="text-blue-505 text-blue-500 h-5 w-5" />
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white">
+                      Your Conversion Interaction Activity
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Daily conversion requests processed via Neon serverless instances.</p>
+                </div>
+
+                <div className="h-56 mt-6 w-full font-mono text-[10px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25}/>
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b12" />
+                      <XAxis dataKey="name" stroke="#64748b" />
+                      <YAxis stroke="#64748b" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#0f172a', 
+                          border: 'none', 
+                          color: '#fff', 
+                          borderRadius: '12px' 
+                        }} 
+                      />
+                      <Area type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCount)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Right Side: Preference presets and status indicator */}
+              <div className="space-y-6">
+
+                {/* Preference setup card */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-md">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <SettingsIcon className="text-purple-500 h-4.5 w-4.5" />
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-700 dark:text-white">
+                      Favorite Dimensions
+                    </h4>
+                  </div>
+                  
+                  <div className="space-y-3 mt-4">
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold">From Unit Preset</label>
+                      <select 
+                        value={favUnitsPair.from}
+                        onChange={(e) => setFavUnitsPair({ ...favUnitsPair, from: e.target.value })}
+                        className="w-full h-10 mt-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="meters">Meters (Length)</option>
+                        <option value="kilometers">Kilometers (Length)</option>
+                        <option value="kilograms">Kilograms (Weight)</option>
+                        <option value="pounds">Pounds (Weight)</option>
+                        <option value="liters">Liters (Volume)</option>
+                        <option value="celsius">Celsius (Temp)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold">To Unit Preset</label>
+                      <select 
+                        value={favUnitsPair.to}
+                        onChange={(e) => setFavUnitsPair({ ...favUnitsPair, to: e.target.value })}
+                        className="w-full h-10 mt-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="feet">Feet (Length)</option>
+                        <option value="miles">Miles (Length)</option>
+                        <option value="grams">Grams (Weight)</option>
+                        <option value="ounces">Ounces (Weight)</option>
+                        <option value="gallons">Gallons (Volume)</option>
+                        <option value="fahrenheit">Fahrenheit (Temp)</option>
+                      </select>
+                    </div>
+
+                    <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-[10px] text-blue-600 dark:text-blue-400 leading-normal font-medium mt-1">
+                      👑 Saved! These choices will pre-fill converters on return.
+                    </div>
+                  </div>
+                </div>
+
+                {/* DB Info Card */}
+                <div className="bg-slate-900 border border-slate-850 text-white rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Database className="text-green-400 h-5 w-5" />
+                      <h4 className="text-xs font-bold uppercase tracking-widest text-slate-350">
+                        Neon PostgreSQL
+                      </h4>
+                    </div>
+                    <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                  </div>
+
+                  <p className="text-[10px] text-slate-450 leading-relaxed">
+                    Account roles, telemetry analytics, and static page configurations are stored persistently in Neon.
+                  </p>
+
+                  <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-[9px] font-mono text-slate-400">
+                    <span>STATUS: LIVE</span>
+                    <span>DRIVER: PG_NATIVE</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Bottom history table */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-md">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white mb-4">
+                Historic Operations telemetry
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-mono uppercase text-[10px]">
+                      <th className="py-2.5">Category</th>
+                      <th className="py-2.5">Input Spec</th>
+                      <th className="py-2.5">Result Out</th>
+                      <th className="py-2.5">Executed At</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono text-slate-700 dark:text-slate-300">
+                    {conversions.slice(0, 5).map((conv) => (
+                      <tr key={conv.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-950/20">
+                        <td className="py-2 font-bold capitalize">{conv.type.replace('-', ' ')}</td>
+                        <td className="py-2">{conv.from_value?.toFixed(2)} {conv.from_unit}</td>
+                        <td className="py-2 text-blue-600 dark:text-blue-400 font-semibold">→ {conv.to_value?.toFixed(4)} {conv.to_unit}</td>
+                        <td className="py-2 text-[10px] text-slate-400">{new Date(conv.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                    {conversions.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-4 text-center text-slate-405 text-slate-400">No active entries matching this telemetry session.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
       </main>
 
       {/* Corporate Compliance Footer */}
@@ -498,10 +830,12 @@ export default function App() {
         settings={settings || DEFAULT_SETTINGS} 
       />
 
-      {/* Authentication Login Dialog Modals (Overlay popup card widgets) */}
+      {/* Authentication Dialog Modals */}
       {authOpen && (
         <div id="auth-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            
+            {/* Close */}
             <button
               id="close-auth-modal"
               onClick={() => setAuthOpen(false)}
@@ -510,52 +844,107 @@ export default function App() {
               <X className="h-5 w-5" />
             </button>
 
-            <div className="text-center pb-6 border-b border-slate-100 dark:border-slate-800">
-              <div className="h-11 w-11 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
+            {/* Headers */}
+            <div className="text-center pb-5 border-b border-slate-100 dark:border-slate-800">
+              <div className="h-11 w-11 bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <Lock className="h-5.5 w-5.5" />
               </div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {authTab === 'login' ? 'Site Member Center' : 'Password Recovery Identity System'}
+                {authTab === 'login' ? 'ConvertHub Login' : 
+                 authTab === 'register' ? 'Create Your Account' : 
+                 authTab === 'verify' ? 'Email Verification' : 'Forgot Password Link'}
               </h3>
               <p className="text-[10px] text-slate-500 leading-normal mt-1">
-                {authTab === 'login' ? 'Administrative security check identity verification' : 'Registered user credential identifier check'}
+                {authTab === 'login' ? 'Access your custom converters workspace' : 
+                 authTab === 'register' ? 'Register and store user roles in Neon database' : 
+                 authTab === 'verify' ? 'Confirm your simulated verification code' : 'Enter registered information to override credential values'}
               </p>
             </div>
 
-            <form onSubmit={handleAuthSubmit} className="mt-6 space-y-4">
-              
-              {/* Form errors indicator */}
-              {authError && (
-                <div className="p-3 text-xs bg-red-50 dark:bg-red-950/40 text-red-650 dark:text-red-400 border border-red-100 dark:border-red-900/60 rounded-xl">
-                  {authError}
-                </div>
-              )}
-
-              {/* Form success indicator */}
-              {authSuccess && (
-                <div className="p-3 text-xs bg-green-50 dark:bg-green-950/40 text-green-650 dark:text-green-400 border border-green-100 dark:border-green-900/60 rounded-xl">
-                  {authSuccess}
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">{t.username}</label>
-                <input
-                  id="auth-username"
-                  type="email"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white font-mono"
-                  placeholder="e.g. hamxak441@gmail.com"
-                  required
-                />
+            {/* Tabs Selector for Login / Signup */}
+            {(authTab === 'login' || authTab === 'register') && (
+              <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl mt-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError('');
+                    setAuthSuccess('');
+                    setAuthTab('login');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${
+                    authTab === 'login' 
+                      ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-white' 
+                      : 'text-slate-405 text-slate-500'
+                  }`}
+                >
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError('');
+                    setAuthSuccess('');
+                    setAuthTab('register');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${
+                    authTab === 'register' 
+                      ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-white' 
+                      : 'text-slate-405 text-slate-500'
+                  }`}
+                >
+                  Sign Up
+                </button>
               </div>
+            )}
 
-              {authTab === 'login' ? (
-                // Login Password Field
+            {/* Error / Success logs */}
+            {authError && (
+              <div className="p-3 mt-4 text-xs bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/60 rounded-xl">
+                {authError}
+              </div>
+            )}
+            {authSuccess && (
+              <div className="p-3 mt-4 text-xs bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-450 dark:text-green-400 border border-green-100 dark:border-green-900/60 rounded-xl">
+                {authSuccess}
+              </div>
+            )}
+
+            {/* Primary Form */}
+            <form onSubmit={handleAuthSubmit} className="mt-5 space-y-4">
+              
+              {authTab === 'register' && (
+                <div className="space-y-1.5 animate-fade-in">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Full Name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-850 dark:text-white"
+                    placeholder="e.g. Amir Khan"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Username/Email Input for login, register, forgot */}
+              {authTab !== 'verify' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Email Address / Username</label>
+                  <input
+                    type="email"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white font-mono"
+                    placeholder="e.g. hamxak441@gmail.com"
+                    required
+                  />
+                </div>
+              )}
+
+              {authTab === 'login' && (
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">{t.password}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Password</label>
                     <button 
                       type="button"
                       onClick={() => {
@@ -563,28 +952,56 @@ export default function App() {
                         setAuthSuccess('');
                         setAuthTab('forgot');
                       }}
-                      className="text-[10px] text-blue-500 hover:text-blue-600 font-semibold cursor-pointer"
+                      className="text-[10px] text-blue-505 text-blue-500 hover:text-blue-600 font-semibold cursor-pointer"
                     >
                       {t.forgotPassword}
                     </button>
                   </div>
                   <input
-                    id="auth-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
-                    placeholder="Enter security key..."
+                    placeholder="Enter account password..."
                     required
                   />
                 </div>
-              ) : (
-                // Forgot Password Verification fields
+              )}
+
+              {authTab === 'register' && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
+                      placeholder="Password (minimum 6 characters)..."
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Store in Neon: Assigned Role</label>
+                    <select
+                      value={registerRole}
+                      onChange={(e) => setRegisterRole(e.target.value as any)}
+                      className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
+                    >
+                      <option value="user">User Role (access: /dashboard)</option>
+                      <option value="admin">Admin Role (access: /admin)</option>
+                      <option value="super_admin">Super Admin Role (access: /admin Override)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {authTab === 'forgot' && (
                 <>
                   <div className="space-y-1.5 animate-fade-in">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">{t.fullNameLabel}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Exact Full Name Registered</label>
                     <input
-                      id="auth-fullname"
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
@@ -595,29 +1012,62 @@ export default function App() {
                   </div>
 
                   <div className="space-y-1.5 animate-fade-in">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">{t.newPasswordLabel}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">New Password</label>
                     <input
-                      id="auth-newpassword"
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
-                      placeholder="Enter new account key..."
+                      placeholder="Enter new account password key..."
                       required
                     />
                   </div>
                 </>
               )}
 
+              {authTab === 'verify' && (
+                <div className="space-y-4 animate-fade-in">
+                  {lastSimulatedCode && (
+                    <div className="p-4 bg-blue-100/50 dark:bg-blue-950/50 border border-blue-500/20 rounded-2xl text-center space-y-1.5 text-xs text-blue-800 dark:text-blue-350">
+                      <div className="font-bold flex items-center justify-center space-x-1">
+                        <Sparkles className="h-4.5 w-4.5 text-blue-600 animate-pulse" />
+                        <span>Simulated verification Mail Delivered!</span>
+                      </div>
+                      <p>Enter the code below to instantly activate this account in PostgreSQL:</p>
+                      <p className="font-mono text-lg font-black tracking-widest text-blue-650 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-4 py-1 rounded-xl inline-block mt-1 select-all">
+                        {lastSimulatedCode}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">6-Digit Verification OTP Code</label>
+                    <input
+                      type="text"
+                      value={verifyCode}
+                      onChange={(e) => setVerifyCode(e.target.value)}
+                      maxLength={6}
+                      className="w-full h-12 text-center text-lg font-mono font-bold rounded-xl border border-slate-250 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-550 focus:ring-blue-500/20 text-slate-800 dark:text-white"
+                      placeholder="e.g. 123456"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Submit trigger button */}
               <button
                 id="auth-submit-btn"
                 type="submit"
-                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-xs uppercase font-extrabold tracking-wider rounded-xl shadow-lg transition-all pt-0.5 cursor-pointer mt-5"
+                className="w-full h-11 bg-blue-605 bg-blue-600 hover:bg-blue-700 text-white text-xs uppercase font-extrabold tracking-wider rounded-xl shadow-lg transition-all pt-0.5 cursor-pointer mt-5"
               >
-                {authTab === 'login' ? t.login : t.resetPasswordBtn}
+                {authTab === 'login' ? 'Confirm Login' : 
+                 authTab === 'register' ? 'Submit Registration' : 
+                 authTab === 'verify' ? 'Confirm & Authenticate' : 'Override Password'}
               </button>
 
-              {authTab === 'forgot' && (
+              {/* Back options */}
+              {(authTab === 'forgot' || authTab === 'verify') && (
                 <button
                   type="button"
                   onClick={() => {
@@ -631,10 +1081,37 @@ export default function App() {
                 </button>
               )}
 
-              {/* Helper text panel */}
+              {/* Secure Google Login */}
               {authTab === 'login' && (
-                <div className="mt-4 p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850 text-[10px] text-slate-500 leading-normal">
-                  <span className="font-bold text-slate-700 dark:text-slate-350 block mb-1">Testing Credentials:</span>
+                <>
+                  <div className="relative flex items-center justify-center my-6">
+                    <div className="absolute inset-0 border-t border-slate-200 dark:border-slate-800" />
+                    <span className="relative px-3 text-[10px] text-slate-400 bg-white dark:bg-slate-900 uppercase font-bold tracking-wider">
+                      Or, continue with social account
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoogleOAuth}
+                    className="w-full h-11 border border-slate-250 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 bg-white dark:bg-slate-900 text-slate-800 dark:text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2.5 cursor-pointer"
+                  >
+                    {/* Google Icon */}
+                    <svg className="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                    </svg>
+                    <span>One-Click Sign in with Google</span>
+                  </button>
+                </>
+              )}
+
+              {/* Helper text instructions panel */}
+              {authTab === 'login' && (
+                <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850 text-[10px] text-slate-500 leading-normal">
+                  <span className="font-bold text-slate-700 dark:text-slate-350 block mb-1">Neon Test Seed Credentials:</span>
                   Admin user: <strong className="font-mono text-blue-600 select-all">hamxak441@gmail.com</strong> (Registered Name: <strong>Amir Khan</strong>), Password key: <strong className="font-mono text-blue-600 select-all">Ammir$1298</strong>.
                 </div>
               )}

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { db } from './src/server/db.ts';
 
@@ -55,37 +56,143 @@ async function startServer() {
 
     const users = db.getUsers();
     const found = users.find(
-      u => u.username.toLowerCase() === username.toLowerCase() && u.password_hash === password
+      u => u.username.toLowerCase() === username.toLowerCase()
     );
 
     if (found) {
-      res.json({
-        success: true,
-        user: {
-          id: found.id,
-          username: found.username,
-          role: found.role,
-          name: found.name
+      // Allow plaintext checking (for seeding/testing compatibility) or secure hashed check
+      const isMatch = bcrypt.compareSync(password, found.password_hash) || (password === found.password_hash);
+      
+      if (isMatch) {
+        if (found.is_verified === false) {
+          res.status(403).json({
+            error: 'Email address has not been verified yet. Please enter your verification code.',
+            unverified: true,
+            username: found.username
+          });
+          return;
         }
-      });
-      return;
+
+        res.json({
+          success: true,
+          user: {
+            id: found.id,
+            username: found.username,
+            role: found.role,
+            name: found.name,
+            is_verified: found.is_verified
+          }
+        });
+        return;
+      }
     }
 
     res.status(401).json({ error: 'Invalid username or password credentials.' });
     return;
   });
 
-  app.post('/api/auth/forgot-password', (req, res) => {
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { name, username, password, role } = req.body;
+      if (!name || !username || !password) {
+        res.status(400).json({ error: 'Name, email, and password are all required.' });
+        return;
+      }
+
+      const users = db.getUsers();
+      if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+        res.status(400).json({ error: 'This email is already registered.' });
+        return;
+      }
+
+      // Check for valid roles requested, default to 'user'
+      const assignedRole = (role === 'admin' || role === 'super_admin' || role === 'user') ? role : 'user';
+
+      const newUser = await db.registerUser({
+        name,
+        username,
+        password_plain: password,
+        role: assignedRole
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Account pre-registered! Copy your verification code below to login.',
+        username: newUser.username,
+        verification_code: newUser.verification_code
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Registration failed' });
+    }
+  });
+
+  app.post('/api/auth/verify', async (req, res) => {
+    try {
+      const { username, code } = req.body;
+      if (!username || !code) {
+        res.status(400).json({ error: 'Username and verification code are required' });
+        return;
+      }
+
+      const verified = await db.verifyEmailCode(username, code);
+      if (verified) {
+        const found = db.getUsers().find(u => u.username.toLowerCase() === username.toLowerCase());
+        res.json({
+          success: true,
+          message: 'Email address verified successfully!',
+          user: found ? {
+            id: found.id,
+            username: found.username,
+            role: found.role,
+            name: found.name,
+            is_verified: true
+          } : null
+        });
+      } else {
+        res.status(400).json({ error: 'Incorrect 6-digit confirmation code.' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Verification execution fault' });
+    }
+  });
+
+  app.post('/api/auth/google', async (req, res) => {
+    try {
+      const { name, email, googleId } = req.body;
+      if (!email || !name || !googleId) {
+        res.status(400).json({ error: 'Google profiles must provide name, email, and googleId' });
+        return;
+      }
+
+      const user = await db.googleAuth(name, email, googleId);
+      res.json({
+        success: true,
+        message: 'Authenticated via Google account!',
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          name: user.name,
+          is_verified: true
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Google Auth error' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password', async (req, res) => {
     const { username, registeredName, newPassword } = req.body;
     if (!username || !registeredName || !newPassword) {
-      return res.status(400).json({ error: 'All fields are strictly required for security verification' });
+      res.status(400).json({ error: 'All fields are strictly required for security verification' });
+      return;
     }
 
-    const success = db.setPassword(username, registeredName, newPassword);
+    const success = await db.verifyPasswordUpdate(username, registeredName, newPassword);
     if (success) {
-      return res.json({ success: true, message: 'Identity verified successfully! Password updated.' });
+      res.json({ success: true, message: 'Identity verified successfully! Password updated.' });
     } else {
-      return res.status(404).json({ error: 'Verification failed. Username or registered name do not match our database.' });
+      res.status(404).json({ error: 'Verification failed. Username or registered name do not match our database.' });
     }
   });
 

@@ -82,7 +82,21 @@ export const Header: React.FC<HeaderProps> = ({
             {t.guides}
           </button>
           
-          {currentUser && currentUser.role === 'admin' && (
+          {currentUser && currentUser.role === 'user' && (
+            <button
+              id="nav-tab-dashboard"
+              onClick={() => onTabChange('dashboard')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center space-x-1.5 ${
+                activeTab === 'dashboard'
+                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span>Dashboard</span>
+            </button>
+          )}
+          
+          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin') && (
             <button
               id="nav-tab-admin"
               onClick={() => onTabChange('admin')}
@@ -93,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <ShieldAlert className="h-4 w-4" />
-              <span>{t.admin}</span>
+              <span>{currentUser.role === 'super_admin' ? 'Super Admin' : t.admin}</span>
             </button>
           )}
         </nav>

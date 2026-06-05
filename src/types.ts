@@ -2,8 +2,11 @@ export interface User {
   id: number;
   username: string;
   password_hash: string;
-  role: 'admin' | 'user';
+  role: 'user' | 'admin' | 'super_admin';
   name: string;
+  is_verified?: boolean;
+  verification_code?: string;
+  google_id?: string;
 }
 
 export interface Category {
