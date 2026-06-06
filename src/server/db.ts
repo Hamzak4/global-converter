@@ -912,11 +912,13 @@ class DBService {
 
     if (this.isPostgres && this.pool) {
       try {
-        await this.pool.query(
-          'INSERT INTO conversions (id, type, from_unit, to_unit, from_value, to_value, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [newLog.id, newLog.type, newLog.from_unit, newLog.to_unit, newLog.from_value, newLog.to_value, newLog.created_at]
+        const res = await this.pool.query(
+          'INSERT INTO conversions (type, from_unit, to_unit, from_value, to_value, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+          [newLog.type, newLog.from_unit, newLog.to_unit, newLog.from_value, newLog.to_value, newLog.created_at]
         );
-        await this.syncSequence('conversions');
+        if (res.rows && res.rows[0]) {
+          newLog.id = res.rows[0].id;
+        }
       } catch (err) {
         console.error('Postgre logConversion err:', err);
       }
@@ -942,11 +944,13 @@ class DBService {
 
     if (this.isPostgres && this.pool) {
       try {
-        await this.pool.query(
-          'INSERT INTO visitors (id, ip, user_agent, path, visited_at) VALUES ($1, $2, $3, $4, $5)',
-          [log.id, log.ip, log.user_agent, log.path, log.visited_at]
+        const res = await this.pool.query(
+          'INSERT INTO visitors (ip, user_agent, path, visited_at) VALUES ($1, $2, $3, $4) RETURNING id',
+          [log.ip, log.user_agent, log.path, log.visited_at]
         );
-        await this.syncSequence('visitors');
+        if (res.rows && res.rows[0]) {
+          log.id = res.rows[0].id;
+        }
       } catch (err) {
         console.error('Postgre logVisitor err:', err);
       }
