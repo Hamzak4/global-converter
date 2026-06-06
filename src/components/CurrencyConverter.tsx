@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, Coins, ArrowRightLeft } from 'lucide-react';
 import { translations } from '../data';
 
@@ -7,6 +7,33 @@ interface CurrencyConverterProps {
   ratesData: { base: string; rates: Record<string, number>; updated_at: string } | null;
   onConversionLogged: () => void;
 }
+
+const computeLocalCurrency = (
+  from: string,
+  to: string,
+  valueStr: string,
+  ratesData: { base: string; rates: Record<string, number>; updated_at: string } | null
+): number | null => {
+  const val = parseFloat(valueStr);
+  if (isNaN(val)) return null;
+
+  // Utilize dynamic Neon rates or fallback values matching data.ts
+  const rates = ratesData?.rates || {
+    USD: 1,
+    EUR: 0.92,
+    GBP: 0.78,
+    JPY: 156.40,
+    AUD: 1.51,
+    CAD: 1.37,
+    CHF: 0.90,
+    CNY: 7.24,
+    INR: 83.50,
+    PKR: 278.30
+  };
+
+  const baseValue = val / (rates[from] || 1);
+  return baseValue * (rates[to] || 1);
+};
 
 export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
   currentLang,
@@ -23,12 +50,21 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
   // If ratesData is not yet loaded, we use fallback values matching data.ts
   const currencyList = ratesData ? Object.keys(ratesData.rates) : ['USD', 'EUR', 'GBP', 'JPY', 'PKR', 'CAD', 'INR'];
 
+  // Keep result computed in real-time as users edit criteria
+  useEffect(() => {
+    const calculated = computeLocalCurrency(fromCurr, toCurr, inputValue, ratesData);
+    setResult(calculated);
+  }, [fromCurr, toCurr, inputValue, ratesData]);
+
   const handleConvert = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputValue || isNaN(parseFloat(inputValue))) return;
 
     setLoading(true);
     try {
+      const calculated = computeLocalCurrency(fromCurr, toCurr, inputValue, ratesData);
+      setResult(calculated);
+
       const resp = await fetch('/api/convert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,8 +77,6 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
       });
 
       if (resp.ok) {
-        const data = await resp.json();
-        setResult(data.result);
         onConversionLogged();
       }
     } catch (err) {
@@ -56,7 +90,6 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
     const backup = fromCurr;
     setFromCurr(toCurr);
     setToCurr(backup);
-    setResult(null);
   };
 
   return (
@@ -89,7 +122,6 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
                 value={inputValue}
                 onChange={(e) => {
                   setInputValue(e.target.value);
-                  setResult(null);
                 }}
                 className="w-full h-13 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-slate-900 dark:text-white font-mono text-lg transition-all"
                 placeholder="100.00"
@@ -106,7 +138,6 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
               value={fromCurr}
               onChange={(e) => {
                 setFromCurr(e.target.value);
-                setResult(null);
               }}
               className="w-full h-13 px-4.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-sm font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
@@ -137,7 +168,6 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
               value={toCurr}
               onChange={(e) => {
                 setToCurr(e.target.value);
-                setResult(null);
               }}
               className="w-full h-13 px-4.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-sm font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
@@ -165,14 +195,14 @@ export const CurrencyConverter: React.FC<CurrencyConverterProps> = ({
 
       {/* Result Indicator box */}
       {result !== null && (
-        <div id="currency-result-box" className="mt-8 bg-green-50/50 dark:bg-green-950/20 border border-green-100 dark:border-green-905/60 rounded-2xl p-6 animate-fade-in">
+        <div id="currency-result-box" className="mt-8 bg-green-50/50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/60 rounded-2xl p-6 animate-fade-in">
           <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wider">{t.result}</p>
           <div className="flex items-baseline space-x-2 mt-2">
             <span className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono break-all">{result.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
             <span className="text-sm font-semibold text-slate-500 uppercase">{toCurr}</span>
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-mono">
-            Rate reference: 1 {fromCurr} = {(result / parseFloat(inputValue)).toFixed(5)} {toCurr}
+            Rate reference: 1 {fromCurr} = {parseFloat(inputValue) > 0 ? (result / parseFloat(inputValue)).toFixed(5) : '0.00000'} {toCurr}
           </p>
         </div>
       )}

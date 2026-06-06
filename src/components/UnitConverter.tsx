@@ -69,6 +69,78 @@ const FORMULA_HELP: Record<string, Record<string, { formula: string; example: st
   }
 };
 
+const computeLocalUnit = (category: string, from: string, to: string, valueStr: string): number | null => {
+  const val = parseFloat(valueStr);
+  if (isNaN(val)) return null;
+
+  if (category === 'length-converter') {
+    const multipliers: Record<string, number> = {
+      meters: 1,
+      kilometers: 1000,
+      centimeters: 0.01,
+      millimeters: 0.001,
+      miles: 1609.34,
+      yards: 0.9144,
+      feet: 0.3048,
+      inches: 0.0254
+    };
+    const meters = val * (multipliers[from] || 1);
+    return meters / (multipliers[to] || 1);
+  } else if (category === 'weight-converter') {
+    const multipliers: Record<string, number> = {
+      kilograms: 1,
+      grams: 0.001,
+      milligrams: 0.000001,
+      pounds: 0.45359237,
+      ounces: 0.02834952,
+      stone: 6.35029318,
+      tons: 1000
+    };
+    const kgs = val * (multipliers[from] || 1);
+    return kgs / (multipliers[to] || 1);
+  } else if (category === 'temperature-converter') {
+    if (from === 'celsius' && to === 'fahrenheit') {
+      return (val * 9/5) + 32;
+    } else if (from === 'fahrenheit' && to === 'celsius') {
+      return (val - 32) * 5/9;
+    } else if (from === 'celsius' && to === 'kelvin') {
+      return val + 273.15;
+    } else if (from === 'kelvin' && to === 'celsius') {
+      return val - 273.15;
+    } else if (from === 'fahrenheit' && to === 'kelvin') {
+      return ((val - 32) * 5/9) + 273.15;
+    } else if (from === 'kelvin' && to === 'fahrenheit') {
+      return ((val - 273.15) * 9/5) + 32;
+    } else {
+      return val;
+    }
+  } else if (category === 'area-converter') {
+    const multipliers: Record<string, number> = {
+      square_meters: 1,
+      square_kilometers: 1000000,
+      square_miles: 2589988.11,
+      square_yards: 0.83612736,
+      square_feet: 0.09290304,
+      acres: 4046.85642,
+      hectares: 10000
+    };
+    const sq_m = val * (multipliers[from] || 1);
+    return sq_m / (multipliers[to] || 1);
+  } else if (category === 'volume-converter') {
+    const multipliers: Record<string, number> = {
+      liters: 1,
+      milliliters: 0.001,
+      gallons: 3.78541,
+      quarts: 0.946353,
+      cups: 0.24,
+      cubic_meters: 1000
+    };
+    const liters = val * (multipliers[from] || 1);
+    return liters / (multipliers[to] || 1);
+  }
+  return val;
+};
+
 export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onConversionLogged }) => {
   const t = translations[currentLang] || translations.en;
   const [activeCategory, setActiveCategory] = useState<string>('length-converter');
@@ -79,13 +151,18 @@ export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onCon
   const [result, setResult] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
+  // Synchronously compute the local conversion as inputs are modified
+  useEffect(() => {
+    const calculated = computeLocalUnit(activeCategory, fromUnit, toUnit, inputValue);
+    setResult(calculated);
+  }, [activeCategory, fromUnit, toUnit, inputValue]);
+
   // Re-adjust dropdown fields when category changes safely
   useEffect(() => {
     const list = UNIT_OPTIONS[activeCategory] || [];
     if (list.length >= 2) {
       setFromUnit(list[0].value);
       setToUnit(list[1].value);
-      setResult(null);
     }
   }, [activeCategory]);
 
@@ -95,6 +172,10 @@ export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onCon
 
     setLoading(true);
     try {
+      // Instantly compute so results block remains populated immediately
+      const calculated = computeLocalUnit(activeCategory, fromUnit, toUnit, inputValue);
+      setResult(calculated);
+
       const resp = await fetch('/api/convert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,8 +188,6 @@ export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onCon
       });
 
       if (resp.ok) {
-        const data = await resp.json();
-        setResult(data.result);
         onConversionLogged();
       }
     } catch (err) {
@@ -122,7 +201,6 @@ export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onCon
     const backup = fromUnit;
     setFromUnit(toUnit);
     setToUnit(backup);
-    setResult(null);
   };
 
   const getHelpContent = () => {
@@ -181,7 +259,6 @@ export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onCon
                 value={inputValue}
                 onChange={(e) => {
                   setInputValue(e.target.value);
-                  setResult(null);
                 }}
                 className="w-full h-13 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-slate-900 dark:text-white font-mono text-lg transition-all"
                 placeholder="Enter length or value..."
@@ -198,7 +275,6 @@ export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onCon
               value={fromUnit}
               onChange={(e) => {
                 setFromUnit(e.target.value);
-                setResult(null);
               }}
               className="w-full h-13 px-4.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-sm font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
@@ -229,7 +305,6 @@ export const UnitConverter: React.FC<UnitConverterProps> = ({ currentLang, onCon
               value={toUnit}
               onChange={(e) => {
                 setToUnit(e.target.value);
-                setResult(null);
               }}
               className="w-full h-13 px-4.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-sm font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
             >

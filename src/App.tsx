@@ -5,6 +5,10 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { UnitConverter } from './components/UnitConverter';
 import { CurrencyConverter } from './components/CurrencyConverter';
+import { DocumentConverter } from './components/DocumentConverter';
+import { ImageConverter } from './components/ImageConverter';
+import { TimeZoneConverter } from './components/TimeZoneConverter';
+import { TextToolsConverter } from './components/TextToolsConverter';
 import { AdminPanel } from './components/AdminPanel';
 import { 
   AreaChart, 
@@ -13,7 +17,10 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell
 } from 'recharts';
 import { 
   Search, 
@@ -26,7 +33,9 @@ import {
   ArrowRight,
   TrendingUp,
   Settings as SettingsIcon,
-  Sparkles
+  Sparkles,
+  Download,
+  BarChart3
 } from 'lucide-react';
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -64,21 +73,25 @@ export default function App() {
 
   // Navigation and dynamic routing
   const [activeTab, setActiveTab] = useState<string>('converters'); // converters, guides, admin, dashboard, article:slug
+  const [activeConverterTab, setActiveConverterTab] = useState<'unit' | 'currency' | 'timezone' | 'document' | 'image' | 'text'>('unit');
+  const [simulatedEmails, setSimulatedEmails] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Authentication controllers
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authOpen, setAuthOpen] = useState<boolean>(false);
-  const [authTab, setAuthTab] = useState<'login' | 'register' | 'forgot' | 'verify'>('login');
+  const [authTab, setAuthTab] = useState<'login' | 'register' | 'forgot' | 'verify' | 'neon'>('login');
+  const [neonDbUrl, setNeonDbUrl] = useState<string>('');
   
   // Credentials Form States
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [fullName, setFullName] = useState<string>('');
-  const [registerRole, setRegisterRole] = useState<'user' | 'admin' | 'super_admin'>('user');
+  const registerRole = 'user';
 
   // Forgot password parameters
   const [newPassword, setNewPassword] = useState<string>('');
+  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1);
 
   // OTP Verification state
   const [verifyCode, setVerifyCode] = useState<string>('');
@@ -90,6 +103,61 @@ export default function App() {
 
   // Dashboard customization states
   const [favUnitsPair, setFavUnitsPair] = useState<{ from: string; to: string }>({ from: 'meters', to: 'feet' });
+
+  // Triggers a CSV file download of the current conversions list in the state
+  const downloadConversionCSV = () => {
+    if (!conversions || conversions.length === 0) return;
+
+    // Build the CSV headers
+    const headers = ["ID", "Category / Type", "From Value", "From Unit", "To Value", "To Unit", "Executed At"];
+
+    // Map rows cleanly
+    const rows = conversions.map(conv => [
+      conv.id,
+      conv.type,
+      conv.from_value,
+      conv.from_unit,
+      conv.to_value,
+      conv.to_unit,
+      conv.created_at ? new Date(conv.created_at).toISOString() : ''
+    ]);
+
+    // Build standard, escaped CSV content
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => {
+        const val = cell !== undefined && cell !== null ? String(cell) : "";
+        // Wrap cells with commas, quotes or newlines in double quotes
+        if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+      }).join(","))
+    ].join("\n");
+
+    // Process download link trigger
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `conversion_history_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const fetchMailbox = async () => {
+    try {
+      const r = await fetch('/api/auth/dev-mailbox');
+      if (r.ok) {
+        const d = await r.json();
+        setSimulatedEmails(d.emails || []);
+      }
+    } catch (e) {
+      console.warn("Could not query sandbox emails:", e);
+    }
+  };
 
   const loadAppState = async () => {
     try {
@@ -108,6 +176,7 @@ export default function App() {
           setCurrentLang(data.settings.default_lang);
         }
       }
+      fetchMailbox();
     } catch (err) {
       console.error('Failed to load application state:', err);
     }
@@ -222,32 +291,81 @@ export default function App() {
       } catch {
         setAuthError('Network timed out verifying confirmation code.');
       }
-    } else {
-      // Forgot password recovery session
+    } else if (authTab === 'forgot') {
       try {
-        const resp = await fetch('/api/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username,
-            registeredName: fullName,
-            newPassword
-          })
-        });
-
-        if (resp.ok) {
-          setAuthSuccess('Credentials updated successfully! Redirecting...');
-          setTimeout(() => {
-            setAuthTab('login');
-            setPassword('');
-            setNewPassword('');
-          }, 2000);
-        } else {
+        if (forgotStep === 1) {
+          const resp = await fetch('/api/auth/forgot-password-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+          });
           const data = await resp.json();
-          setAuthError(data.error || 'Registered identity check failed.');
+          if (resp.ok) {
+            setAuthSuccess(data.message || 'OTP reset code dispatched to your email address!');
+            setForgotStep(2);
+            setTimeout(() => fetchMailbox(), 500); // refresh simulated mailbox
+          } else {
+            setAuthError(data.error || 'Email address not found in our directory.');
+          }
+        } else if (forgotStep === 2) {
+          const resp = await fetch('/api/auth/forgot-password-verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, code: verifyCode })
+          });
+          const data = await resp.json();
+          if (resp.ok) {
+            setAuthSuccess(data.message || 'Recovery code validated successfully! Proceeding to reset your password.');
+            setForgotStep(3);
+          } else {
+            setAuthError(data.error || 'Invalid reset code. Check your inbox and try again.');
+          }
+        } else if (forgotStep === 3) {
+          const resp = await fetch('/api/auth/forgot-password-reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, code: verifyCode, newPassword })
+          });
+          const data = await resp.json();
+          if (resp.ok) {
+            setAuthSuccess(data.message || 'Password updated successfully! Transitioning back to Login.');
+            setTimeout(() => {
+              setAuthTab('login');
+              setForgotStep(1);
+              setPassword('');
+              setVerifyCode('');
+              setNewPassword('');
+              setAuthSuccess('');
+            }, 2000);
+          } else {
+            setAuthError(data.error || 'Password update failed.');
+          }
         }
       } catch {
-        setAuthError('Database sync timeout during recovery.');
+        setAuthError('Connection timed out during credentials recovery.');
+      }
+    } else if (authTab === 'neon') {
+      try {
+        const resp = await fetch('/api/auth/neon-connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dbUrl: neonDbUrl })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          setCurrentUser(data.user);
+          setAuthSuccess(data.message || 'Neon database active on this virtual session!');
+          setTimeout(() => {
+            setAuthOpen(false);
+            setNeonDbUrl('');
+            setActiveTab('admin');
+            setAuthSuccess('');
+          }, 1500);
+        } else {
+          setAuthError(data.error || 'Connection failed. Please verify Neon URL syntax.');
+        }
+      } catch {
+        setAuthError('Timed out connecting to the database pool.');
       }
     }
   };
@@ -329,6 +447,51 @@ export default function App() {
     { name: 'Sun', count: 26 },
   ];
 
+  // Dynamically group the conversion log telemetry entries by category for Bar chart
+  const categoryChartColors = ['#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#10b981'];
+  
+  const categoryChartData = (() => {
+    const counts: Record<string, number> = {
+      'Length': 0,
+      'Weight': 0,
+      'Volume': 0,
+      'Temperature': 0,
+      'Area': 0,
+      'Currency': 0,
+    };
+
+    conversions.forEach(c => {
+      let catName = 'Other';
+      const logType = (c.type || '').toLowerCase();
+      if (logType.includes('length')) {
+        catName = 'Length';
+      } else if (logType.includes('weight')) {
+        catName = 'Weight';
+      } else if (logType.includes('volume')) {
+         catName = 'Volume';
+      } else if (logType.includes('temp') || logType.includes('temper')) {
+         catName = 'Temperature';
+      } else if (logType.includes('area')) {
+         catName = 'Area';
+      } else if (logType.includes('currency') || logType.includes('forex')) {
+         catName = 'Currency';
+      } else {
+        // Pretty capitalize custom types if any
+        const cleaned = logType.replace(/_converter/g, '').replace(/[-_]/g, ' ');
+        catName = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+      }
+      counts[catName] = (counts[catName] || 0) + 1;
+    });
+
+    return Object.keys(counts).map(name => ({
+      name,
+      count: counts[name]
+    }));
+  })();
+
+  const activeCategoriesCount = categoryChartData.filter(item => item.count > 0).length;
+  const mostPopularCategory = categoryChartData.reduce((max, item) => item.count > max.count ? item : max, { name: 'None', count: 0 });
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-250">
       
@@ -387,7 +550,7 @@ export default function App() {
                   setActiveTab('converters');
                 }
               }}
-              className="w-full h-13 pl-12 pr-4 rounded-2xl border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-900/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white transition-all shadow-md shadow-slate-100 dark:shadow-none"
+              className="w-full h-13 pl-12 pr-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-white transition-all shadow-md shadow-slate-100 dark:shadow-none"
               placeholder={t.searchPlaceholder}
             />
           </div>
@@ -398,21 +561,81 @@ export default function App() {
 
         {/* 1. Converters and calculative tools dashboard tab */}
         {activeTab === 'converters' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start mb-8 animate-fade-in" id="dashboard-converters-grid">
+          <div className="space-y-8 animate-fade-in" id="dashboard-converters-grid">
             
-            {/* Left Col: Conversion Widgets */}
-            <div className="lg:col-span-2 space-y-6">
-              <UnitConverter 
-                currentLang={currentLang} 
-                onConversionLogged={loadAppState} 
-              />
-              
-              <CurrencyConverter 
-                ratesData={exchangeRates} 
-                currentLang={currentLang} 
-                onConversionLogged={loadAppState} 
-              />
+            {/* Elegant Selector Tabs Bar */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-2.5 rounded-3xl shadow-sm flex flex-wrap gap-1.5 justify-center md:justify-start">
+              {([
+                { id: 'unit', label: 'Unit Converter', desc: 'Length, Weight, & Temperature', emoji: '📏' },
+                { id: 'currency', label: 'Currency exchange', desc: 'Real-time Forex Rates', emoji: '🪙' },
+                { id: 'timezone', label: 'Time Zone scrub', desc: 'World clocks & Slider', emoji: '⏱️' },
+                { id: 'document', label: 'Document & PDF', desc: 'Advanced Doc Utilities', emoji: '📂' },
+                { id: 'image', label: 'Image conversion', desc: 'Compress or Convert formats', emoji: '🖼️' },
+                { id: 'text', label: 'Text & Utility Tools', desc: 'JSON, Base64 & Web Suite', emoji: '✍️' }
+              ] as const).map((tab) => {
+                const isSelected = activeConverterTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveConverterTab(tab.id)}
+                    className={`flex-1 min-w-[150px] p-3 text-left rounded-2xl transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-950/10'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-350'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{tab.emoji}</span>
+                      <span className="text-xs font-black tracking-tight">{tab.label}</span>
+                    </div>
+                    <span className={`block text-[9px] font-medium mt-1 ${isSelected ? 'text-blue-300 dark:text-slate-500' : 'text-slate-400'}`}>
+                      {tab.desc}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+              
+              {/* Left Col: Conversion Widget Viewport */}
+              <div className="lg:col-span-2">
+                <div className="transition-all duration-300">
+                  {activeConverterTab === 'unit' && (
+                    <UnitConverter 
+                      currentLang={currentLang} 
+                      onConversionLogged={loadAppState} 
+                    />
+                  )}
+                  {activeConverterTab === 'currency' && (
+                    <CurrencyConverter 
+                      ratesData={exchangeRates} 
+                      currentLang={currentLang} 
+                      onConversionLogged={loadAppState} 
+                    />
+                  )}
+                  {activeConverterTab === 'timezone' && (
+                    <TimeZoneConverter 
+                      currentLang={currentLang} 
+                    />
+                  )}
+                  {activeConverterTab === 'document' && (
+                    <DocumentConverter 
+                      currentLang={currentLang} 
+                    />
+                  )}
+                  {activeConverterTab === 'image' && (
+                    <ImageConverter 
+                      currentLang={currentLang} 
+                    />
+                  )}
+                  {activeConverterTab === 'text' && (
+                    <TextToolsConverter 
+                      currentLang={currentLang} 
+                    />
+                  )}
+                </div>
+              </div>
 
             {/* Right block: Live Sidebar conversions index log */}
             <div className="space-y-6">
@@ -479,10 +702,12 @@ export default function App() {
             </div>
 
           </div>
-        )}
 
-        {/* 2. SEO Guides & Directory tab */}
-        {activeTab === 'guides' && (
+        </div>
+      )}
+
+      {/* 2. SEO Guides & Directory tab */}
+      {activeTab === 'guides' && (
           <div className="space-y-8 animate-fade-in" id="guides-list">
             <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
               <h2 className="text-2xl font-bold tracking-tight">{t.latestArticles}</h2>
@@ -659,7 +884,7 @@ export default function App() {
               <div className="flex space-x-3 shrink-0">
                 <button
                   onClick={() => setActiveTab('converters')}
-                  className="px-4 py-2.5 bg-slate-905 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold uppercase rounded-xl shadow-md tracking-wider leading-none cursor-pointer flex items-center space-x-2 shrink-0"
+                  className="px-4 py-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold uppercase rounded-xl shadow-md tracking-wider leading-none cursor-pointer flex items-center space-x-2 shrink-0"
                 >
                   <span>Interactive Converters</span>
                   <ArrowRight className="h-4 w-4" />
@@ -670,42 +895,122 @@ export default function App() {
             {/* Middle Section: Widgets grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* Left Side: Conversion metrics area chart */}
-              <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-md flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <TrendingUp className="text-blue-505 text-blue-500 h-5 w-5" />
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white">
-                      Your Conversion Interaction Activity
-                    </h3>
+              {/* Left Side: Conversion analytics column */}
+              <div className="lg:col-span-2 space-y-8">
+                
+                {/* 1. Daily Conversion requests area chart */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-md flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="text-blue-500 h-5 w-5" />
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white">
+                        Your Conversion Interaction Activity
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Daily conversion requests processed via Neon serverless instances.</p>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">Daily conversion requests processed via Neon serverless instances.</p>
+
+                  <div className="h-56 mt-6 w-full font-mono text-[10px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25}/>
+                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b12" />
+                        <XAxis dataKey="name" stroke="#64748b" />
+                        <YAxis stroke="#64748b" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#0f172a', 
+                            border: 'none', 
+                            color: '#fff', 
+                            borderRadius: '12px' 
+                          }} 
+                        />
+                        <Area type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCount)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="h-56 mt-6 w-full font-mono text-[10px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b12" />
-                      <XAxis dataKey="name" stroke="#64748b" />
-                      <YAxis stroke="#64748b" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#0f172a', 
-                          border: 'none', 
-                          color: '#fff', 
-                          borderRadius: '12px' 
-                        }} 
-                      />
-                      <Area type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCount)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                {/* 2. Brand-new conversion category frequencies bar chart widget */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-md flex flex-col relative">
+                  
+                  {/* Empty state absolute overlay overlay */}
+                  {conversions.length === 0 && (
+                    <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/90 flex flex-col items-center justify-center text-center p-6 rounded-3xl z-10 backdrop-blur-[1px]">
+                      <Sparkles className="h-8 w-8 text-blue-500 animate-pulse mb-2" />
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No telemetry data recorded yet</p>
+                      <p className="text-[10px] text-slate-400 mt-1 max-w-xs">Run any length, weight, temperature, or currency conversion to see live analysis!</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <BarChart3 className="text-purple-500 h-5 w-5" />
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white">
+                          Conversion Domains Frequency Distribution
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">Breakdown of system utility usage statistics across metric domains.</p>
+                    </div>
+                    <span className="text-[10px] font-mono py-1 px-2.5 bg-blue-500/10 text-blue-500 rounded-lg shrink-0">
+                      LIVE STREAM
+                    </span>
+                  </div>
+
+                  {/* Dynamic stats row for better UI */}
+                  <div className="grid grid-cols-3 gap-3 my-5">
+                    <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100/60 dark:border-blue-900/40 rounded-2xl">
+                      <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider block">Top Domain</span>
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate mt-1">
+                        {mostPopularCategory.count > 0 ? mostPopularCategory.name : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100/60 dark:border-purple-900/40 rounded-2xl">
+                      <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider block">Peak Hits</span>
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate mt-1">
+                        {mostPopularCategory.count > 0 ? `${mostPopularCategory.count} times` : '0'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100/60 dark:border-emerald-900/40 rounded-2xl">
+                      <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider block">Sectors Used</span>
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate mt-1">
+                        {activeCategoriesCount} / 6
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Recharts Bar Chart Container */}
+                  <div className="h-56 w-full font-mono text-[10px]">
+                    <ResponsiveContainer width="100%" height="105%">
+                      <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b12" />
+                        <XAxis dataKey="name" stroke="#64748b" tickLine={false} />
+                        <YAxis stroke="#64748b" tickLine={false} allowDecimals={false} />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#0f172a', 
+                            border: 'none', 
+                            color: '#fff', 
+                            borderRadius: '12px' 
+                          }} 
+                          cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }}
+                        />
+                        <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={45}>
+                          {categoryChartData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={categoryChartColors[index % categoryChartColors.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
+
               </div>
 
               {/* Right Side: Preference presets and status indicator */}
@@ -786,9 +1091,23 @@ export default function App() {
 
             {/* Bottom history table */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-md">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white mb-4">
-                Historic Operations telemetry
-              </h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-white">
+                    Historic Operations telemetry
+                  </h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Export logs gathered from standard client operations.</p>
+                </div>
+                <button
+                  onClick={downloadConversionCSV}
+                  disabled={conversions.length === 0}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold uppercase rounded-xl shadow-md tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer"
+                  title="Download full conversion history as CSV"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download CSV</span>
+                </button>
+              </div>
               
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
@@ -811,7 +1130,7 @@ export default function App() {
                     ))}
                     {conversions.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="py-4 text-center text-slate-405 text-slate-400">No active entries matching this telemetry session.</td>
+                        <td colSpan={4} className="py-4 text-center text-slate-400 font-sans">No active entries matching this telemetry session.</td>
                       </tr>
                     )}
                   </tbody>
@@ -852,17 +1171,19 @@ export default function App() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                 {authTab === 'login' ? 'ConvertHub Login' : 
                  authTab === 'register' ? 'Create Your Account' : 
-                 authTab === 'verify' ? 'Email Verification' : 'Forgot Password Link'}
+                 authTab === 'verify' ? 'Email Verification' : 
+                 authTab === 'neon' ? 'Neon Database Auth' : 'Forgot Password Link'}
               </h3>
               <p className="text-[10px] text-slate-500 leading-normal mt-1">
                 {authTab === 'login' ? 'Access your custom converters workspace' : 
                  authTab === 'register' ? 'Register and store user roles in Neon database' : 
-                 authTab === 'verify' ? 'Confirm your simulated verification code' : 'Enter registered information to override credential values'}
+                 authTab === 'verify' ? 'Confirm your simulated verification code' : 
+                 authTab === 'neon' ? 'Authenticate your session using your live Neon Database connection' : 'Enter registered information to override credential values'}
               </p>
             </div>
 
-            {/* Tabs Selector for Login / Signup */}
-            {(authTab === 'login' || authTab === 'register') && (
+            {/* Tabs Selector for Login / Signup / Neon */}
+            {(authTab === 'login' || authTab === 'register' || authTab === 'neon') && (
               <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl mt-5">
                 <button
                   type="button"
@@ -874,7 +1195,7 @@ export default function App() {
                   className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${
                     authTab === 'login' 
                       ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-white' 
-                      : 'text-slate-405 text-slate-500'
+                      : 'text-slate-500'
                   }`}
                 >
                   Log In
@@ -889,10 +1210,25 @@ export default function App() {
                   className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${
                     authTab === 'register' 
                       ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-white' 
-                      : 'text-slate-405 text-slate-500'
+                      : 'text-slate-500'
                   }`}
                 >
                   Sign Up
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError('');
+                    setAuthSuccess('');
+                    setAuthTab('neon');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${
+                    authTab === 'neon' 
+                      ? 'bg-emerald-600 shadow-sm text-white' 
+                      : 'text-slate-500'
+                  }`}
+                >
+                  Neon DB
                 </button>
               </div>
             )}
@@ -927,7 +1263,7 @@ export default function App() {
               )}
 
               {/* Username/Email Input for login, register, forgot */}
-              {authTab !== 'verify' && (
+              {authTab !== 'verify' && authTab !== 'neon' && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Email Address / Username</label>
                   <input
@@ -952,7 +1288,7 @@ export default function App() {
                         setAuthSuccess('');
                         setAuthTab('forgot');
                       }}
-                      className="text-[10px] text-blue-505 text-blue-500 hover:text-blue-600 font-semibold cursor-pointer"
+                      className="text-[10px] text-blue-500 hover:text-blue-600 font-semibold cursor-pointer"
                     >
                       {t.forgotPassword}
                     </button>
@@ -982,47 +1318,82 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Store in Neon: Assigned Role</label>
-                    <select
-                      value={registerRole}
-                      onChange={(e) => setRegisterRole(e.target.value as any)}
-                      className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
-                    >
-                      <option value="user">User Role (access: /dashboard)</option>
-                      <option value="admin">Admin Role (access: /admin)</option>
-                      <option value="super_admin">Super Admin Role (access: /admin Override)</option>
-                    </select>
-                  </div>
+
                 </>
               )}
 
               {authTab === 'forgot' && (
-                <>
-                  <div className="space-y-1.5 animate-fade-in">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Exact Full Name Registered</label>
+                <div className="space-y-4">
+                  {forgotStep === 1 && (
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Registered Email Address</label>
+                      <input
+                        type="email"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full h-12 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-880 dark:text-white"
+                        placeholder="e.g. user@converthub.com"
+                        required
+                      />
+                      <p className="text-[10px] text-slate-400 leading-normal">Enter your email and we will send you a 6-digit password recovery code.</p>
+                    </div>
+                  )}
+
+                  {forgotStep === 2 && (
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">6-digit Recovery Code</label>
+                      <input
+                        type="text"
+                        value={verifyCode}
+                        onChange={(e) => setVerifyCode(e.target.value)}
+                        maxLength={6}
+                        className="w-full h-12 text-center text-lg font-mono font-bold rounded-xl border border-slate-250 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-880 dark:text-white"
+                        placeholder="e.g. 123456"
+                        required
+                      />
+                      <p className="text-[10px] text-slate-400 leading-normal">Enter the 6-digit confirmation code code from your simulated mailbox.</p>
+                    </div>
+                  )}
+
+                  {forgotStep === 3 && (
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Enter New Password</label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full h-12 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-880 dark:text-white"
+                        placeholder="Choose password (minimum 8 characters)"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {authTab === 'neon' && (
+                <div className="space-y-3.5 animate-fade-in text-left">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Neon Database Connection String (DATABASE_URL)</label>
                     <input
                       type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-xl border border-slate-205 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
-                      placeholder="e.g. Amir Khan"
+                      value={neonDbUrl}
+                      onChange={(e) => setNeonDbUrl(e.target.value)}
+                      className="w-full h-12 px-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-slate-50 dark:bg-slate-950 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-800 dark:text-emerald-100"
+                      placeholder="postgresql://alex:passwd@ep-cool-butterfly-1234.us-east-2.neon.tech/neondb?sslmode=require"
                       required
                     />
                   </div>
-
-                  <div className="space-y-1.5 animate-fade-in">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">New Password</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-white"
-                      placeholder="Enter new account password key..."
-                      required
-                    />
+                  <div className="p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl space-y-1">
+                    <h5 className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
+                      Interactive Session Auth
+                    </h5>
+                    <p className="text-[9.5px] text-slate-400 leading-normal">
+                      This dynamically modifies the active database interface pool to pull from your external Neon PostgreSQL service. Your logged-in identity automatically escalates to site administrator context, allowing direct content queries, setting overrides, and diagnostic analysis. It will seed missing system relations automatically.
+                    </p>
                   </div>
-                </>
+                </div>
               )}
 
               {authTab === 'verify' && (
@@ -1059,12 +1430,43 @@ export default function App() {
               <button
                 id="auth-submit-btn"
                 type="submit"
-                className="w-full h-11 bg-blue-605 bg-blue-600 hover:bg-blue-700 text-white text-xs uppercase font-extrabold tracking-wider rounded-xl shadow-lg transition-all pt-0.5 cursor-pointer mt-5"
+                className={`w-full h-11 text-white text-xs uppercase font-extrabold tracking-wider rounded-xl shadow-lg transition-all pt-0.5 cursor-pointer mt-5 ${
+                  authTab === 'neon' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
                 {authTab === 'login' ? 'Confirm Login' : 
                  authTab === 'register' ? 'Submit Registration' : 
-                 authTab === 'verify' ? 'Confirm & Authenticate' : 'Override Password'}
+                 authTab === 'verify' ? 'Confirm & Authenticate' : 
+                 authTab === 'neon' ? 'Authenticate Neon Stack' :
+                 forgotStep === 1 ? 'Dispatch Recovery OTP' :
+                 forgotStep === 2 ? 'Verify Reset Code' : 'Save Password & Login'}
               </button>
+
+              {/* Simulated Mailbox Integration inside authentication modal */}
+              {simulatedEmails && simulatedEmails.length > 0 && (authTab === 'verify' || (authTab === 'forgot' && forgotStep === 2)) && (
+                <div className="mt-5 border-t border-slate-150 dark:border-slate-800 pt-5 space-y-2 text-left">
+                  <span className="text-[9px] font-mono font-bold text-blue-500 uppercase flex items-center">
+                    <span className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-ping mr-1.5"></span>
+                    <span>Sandbox Test Mailbox</span>
+                  </span>
+                  <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
+                    {simulatedEmails.map((mail, i) => (
+                      <div key={i} className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl space-y-1">
+                        <div className="flex justify-between text-[8px] font-mono text-slate-400">
+                          <span className="truncate">To: {mail.to}</span>
+                          <span>{new Date(mail.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200">
+                          {mail.subject}
+                        </p>
+                        <p className="text-[9px] font-mono text-blue-600 dark:text-blue-400 select-all font-semibold">
+                          {mail.body}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Back options */}
               {(authTab === 'forgot' || authTab === 'verify') && (

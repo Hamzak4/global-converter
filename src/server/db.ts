@@ -33,7 +33,7 @@ const DEFAULT_USERS: User[] = [
     id: 1,
     username: 'hamxak441@gmail.com',
     password_hash: bcrypt.hashSync('Ammir$1298', 10),
-    role: 'super_admin',
+    role: 'user',
     name: 'Amir Khan',
     is_verified: true
   },
@@ -41,7 +41,7 @@ const DEFAULT_USERS: User[] = [
     id: 2,
     username: 'admin@converthub.com',
     password_hash: bcrypt.hashSync('admin123', 10),
-    role: 'admin',
+    role: 'user',
     name: 'Site admin',
     is_verified: true
   },
@@ -228,6 +228,13 @@ class DBService {
       `;
 
       await this.pool.query(sql_users);
+      try {
+        await this.pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at VARCHAR(100)");
+        await this.pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255)");
+        await this.pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_code VARCHAR(100)");
+      } catch (err: any) {
+        console.warn("Table alteration warning (standard if in SQLite backup mode):", err.message);
+      }
       await this.pool.query(sql_categories);
       await this.pool.query(sql_articles);
       await this.pool.query(sql_faqs);
@@ -249,6 +256,9 @@ class DBService {
           );
         }
         await this.syncSequence('users');
+      } else {
+        // Force update of preexisting seeded admins to regular users to respect user mandate
+        await this.pool.query("UPDATE users SET role = 'user' WHERE username IN ('hamxak441@gmail.com', 'admin@converthub.com')");
       }
 
       // Check categories count
@@ -353,7 +363,10 @@ class DBService {
           name: u.name,
           is_verified: u.is_verified,
           verification_code: u.verification_code,
-          google_id: u.google_id
+          google_id: u.google_id,
+          otp_expires_at: u.otp_expires_at,
+          avatar_url: u.avatar_url,
+          reset_code: u.reset_code
         })),
         categories: dbCategories.map((c: any) => ({ id: c.id, name: c.name, slug: c.slug })),
         articles: dbArticles.map((a: any) => ({
@@ -437,6 +450,7 @@ class DBService {
     const nextId = this.state.users.reduce((max, u) => Math.max(max, u.id), 0) + 1;
     const password_hash = bcrypt.hashSync(user.password_plain, 10);
     const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit email confirmation code
+    const otp_expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes from now
 
     const newUser: User = {
       id: nextId,
@@ -445,18 +459,22 @@ class DBService {
       password_hash,
       role: user.role,
       is_verified: false,
-      verification_code: code
+      verification_code: code,
+      otp_expires_at
     };
 
+    // Remove any user with same username to prevent duplicate conflict in state array
+    this.state.users = this.state.users.filter(u => u.username.toLowerCase() !== user.username.toLowerCase());
     this.state.users.push(newUser);
     this.saveStateToFile();
 
     if (this.isPostgres && this.pool) {
       try {
         await this.pool.query(
-          `INSERT INTO users (id, name, username, password_hash, role, is_verified, verification_code)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (username) DO UPDATE SET password_hash=$4, role=$5, name=$2`,
-          [newUser.id, newUser.name, newUser.username, newUser.password_hash, newUser.role, false, code]
+          `INSERT INTO users (id, name, username, password_hash, role, is_verified, verification_code, otp_expires_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+           ON CONFLICT (username) DO UPDATE SET password_hash=$4, role=$5, name=$2, is_verified=FALSE, verification_code=$7, otp_expires_at=$8`,
+          [newUser.id, newUser.name, newUser.username, newUser.password_hash, newUser.role, false, code, otp_expires_at]
         );
         await this.syncSequence('users');
       } catch (err) {
@@ -470,6 +488,12 @@ class DBService {
   async verifyEmailCode(username: string, code: string): Promise<boolean> {
     const found = this.state.users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.verification_code === code);
     if (found) {
+      // Check for strict 10 minutes expiration
+      if (found.otp_expires_at && new Date() > new Date(found.otp_expires_at)) {
+        console.warn(`OTP code for ${username} is expired. Expiration was at ${found.otp_expires_at}`);
+        return false;
+      }
+
       found.is_verified = true;
       this.saveStateToFile();
 
@@ -485,17 +509,49 @@ class DBService {
     return false;
   }
 
-  async googleAuth(name: string, email: string, googleId: string) {
-    const lowercaseEmail = email.toLowerCase();
-    const existing = this.state.users.find(u => u.username.toLowerCase() === lowercaseEmail);
-    if (existing) {
-      existing.is_verified = true;
-      existing.google_id = googleId;
+  // Regenerate OTP and update expiration (resend function)
+  async resendOtpCode(username: string): Promise<string | null> {
+    const found = this.state.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    if (found) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp_expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      
+      found.verification_code = code;
+      found.otp_expires_at = otp_expires_at;
       this.saveStateToFile();
 
       if (this.isPostgres && this.pool) {
         try {
-          await this.pool.query('UPDATE users SET is_verified = TRUE, google_id = $1 WHERE username = $2', [googleId, lowercaseEmail]);
+          await this.pool.query(
+            'UPDATE users SET verification_code = $1, otp_expires_at = $2 WHERE username = $3',
+            [code, otp_expires_at, username]
+          );
+        } catch (err) {
+          console.error('Postmaster resend SQL err:', err);
+        }
+      }
+      return code;
+    }
+    return null;
+  }
+
+  async googleAuth(name: string, email: string, googleId: string, avatarUrl?: string) {
+    const lowercaseEmail = email.toLowerCase();
+    const existing = this.state.users.find(u => u.username.toLowerCase() === lowercaseEmail);
+    const syncAvatar = avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`;
+    
+    if (existing) {
+      existing.is_verified = true;
+      existing.google_id = googleId;
+      existing.avatar_url = syncAvatar;
+      this.saveStateToFile();
+
+      if (this.isPostgres && this.pool) {
+        try {
+          await this.pool.query(
+            'UPDATE users SET is_verified = TRUE, google_id = $1, avatar_url = $2 WHERE username = $3',
+            [googleId, syncAvatar, lowercaseEmail]
+          );
         } catch (err) {
           console.error('Postgre google update err:', err);
         }
@@ -515,7 +571,8 @@ class DBService {
       password_hash,
       role: 'user',
       is_verified: true,
-      google_id: googleId
+      google_id: googleId,
+      avatar_url: syncAvatar
     };
 
     this.state.users.push(newUser);
@@ -524,9 +581,9 @@ class DBService {
     if (this.isPostgres && this.pool) {
       try {
         await this.pool.query(
-          `INSERT INTO users (id, name, username, password_hash, role, is_verified, google_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [newUser.id, newUser.name, newUser.username, newUser.password_hash, newUser.role, true, googleId]
+          `INSERT INTO users (id, name, username, password_hash, role, is_verified, google_id, avatar_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [newUser.id, newUser.name, newUser.username, newUser.password_hash, newUser.role, true, googleId, syncAvatar]
         );
         await this.syncSequence('users');
       } catch (err) {
@@ -558,6 +615,62 @@ class DBService {
       return true;
     }
 
+    return false;
+  }
+
+  async generatePasswordResetOtp(username: string): Promise<string | null> {
+    const found = this.state.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    if (found) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes from now
+      found.reset_code = code;
+      found.otp_expires_at = expires;
+      this.saveStateToFile();
+
+      if (this.isPostgres && this.pool) {
+        try {
+          await this.pool.query(
+            "UPDATE users SET reset_code = $1, otp_expires_at = $2 WHERE id = $3",
+            [code, expires, found.id]
+          );
+        } catch (err) {
+          console.error("Postgre setResetCode err:", err);
+        }
+      }
+      return code;
+    }
+    return null;
+  }
+
+  async applyPasswordResetWithOtp(username: string, code: string, newPasswordPlain: string): Promise<boolean> {
+    const found = this.state.users.find(
+      u => u.username.toLowerCase() === username.toLowerCase() && u.reset_code === code
+    );
+    if (found) {
+      // Check code expiration
+      if (found.otp_expires_at && new Date() > new Date(found.otp_expires_at)) {
+        console.warn("Reset OTP has expired.");
+        return false;
+      }
+
+      const hash = bcrypt.hashSync(newPasswordPlain, 10);
+      found.password_hash = hash;
+      // Clear reset code
+      found.reset_code = undefined;
+      this.saveStateToFile();
+
+      if (this.isPostgres && this.pool) {
+        try {
+          await this.pool.query(
+            "UPDATE users SET password_hash = $1, reset_code = NULL WHERE id = $2",
+            [hash, found.id]
+          );
+        } catch (err) {
+          console.error("Postgre apply reset password err:", err);
+        }
+      }
+      return true;
+    }
     return false;
   }
 
@@ -840,6 +953,57 @@ class DBService {
     }
 
     return log;
+  }
+
+  public async switchToDynamicNeon(dbUrl: string): Promise<{ success: boolean; host: string; dbname: string; tables: number }> {
+    try {
+      console.log('Switching active pool to user provided Neon Database URL...');
+      const tempPool = new Pool({
+        connectionString: dbUrl,
+        ssl: dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1') ? false : { rejectUnauthorized: false }
+      });
+
+      // Confirm pool reachability
+      const client = await tempPool.connect();
+      console.log('Dynamic user Neon credentials validated successfully!');
+      client.release();
+
+      // Successfully connected! Change active pool
+      const oldPool = this.pool;
+      this.pool = tempPool;
+      this.isPostgres = true;
+
+      // Close the old pool in background to avoid leak
+      if (oldPool) {
+        oldPool.end().catch((err: any) => console.warn('Old pool shutdown warning:', err.message));
+      }
+
+      // Initialize the schemas on this new DB if required
+      await this.initPostgresTables();
+
+      // Parse connection details for display
+      let host = 'unknown-host';
+      let dbname = 'neondb';
+      try {
+        const u = new URL(dbUrl);
+        host = u.hostname;
+        dbname = u.pathname.substring(1) || 'neondb';
+      } catch {}
+
+      // Query active table count
+      let tables = 0;
+      try {
+        const result = await this.pool.query(
+          "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+        );
+        tables = parseInt(result.rows[0].count);
+      } catch {}
+
+      return { success: true, host, dbname, tables };
+    } catch (err: any) {
+      console.error('Dynamic Neon switch failed:', err.message);
+      throw err;
+    }
   }
 
   async incrementArticleViews(slug: string) {

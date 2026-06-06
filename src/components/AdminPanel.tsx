@@ -468,7 +468,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     rows={3}
                     value={adFooter} 
                     onChange={e => setAdFooter(e.target.value)}
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-805 bg-slate-50 dark:bg-slate-950 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/25 text-slate-800 dark:text-white font-mono"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/25 text-slate-800 dark:text-white font-mono"
                     placeholder="Enter ad code details..."
                   />
                 </div>
@@ -558,7 +558,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     type="text" 
                     value={artFormula} 
                     onChange={e => setArtFormula(e.target.value)}
-                    className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-805 bg-white dark:bg-slate-950 text-sm font-mono text-blue-600 dark:text-blue-400"
+                    className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm font-mono text-blue-600 dark:text-blue-400"
                     placeholder="e.g. Kilograms = Pounds * 0.453592"
                     required
                   />

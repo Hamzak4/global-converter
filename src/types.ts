@@ -7,6 +7,9 @@ export interface User {
   is_verified?: boolean;
   verification_code?: string;
   google_id?: string;
+  otp_expires_at?: string;
+  avatar_url?: string;
+  reset_code?: string;
 }
 
 export interface Category {

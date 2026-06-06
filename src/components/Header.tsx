@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, Sun, Moon, LogIn, LogOut, ShieldAlert } from 'lucide-react';
+import { Globe, Sun, Moon, LogIn, LogOut } from 'lucide-react';
 import { LANGUAGES, translations } from '../data';
 
 interface HeaderProps {
@@ -95,21 +95,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Dashboard</span>
             </button>
           )}
-          
-          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin') && (
-            <button
-              id="nav-tab-admin"
-              onClick={() => onTabChange('admin')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center space-x-1.5 ${
-                activeTab === 'admin'
-                  ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 shadow-sm'
-                  : 'text-red-600 dark:text-red-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/30'
-              }`}
-            >
-              <ShieldAlert className="h-4 w-4" />
-              <span>{currentUser.role === 'super_admin' ? 'Super Admin' : t.admin}</span>
-            </button>
-          )}
         </nav>
 
         {/* Configurations list (Language dropdown, dark theme selector, authentication controls) */}
@@ -166,22 +151,28 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* User Signin toggle dashboard control */}
           {currentUser ? (
-            <div className="flex items-center space-x-2.5 pl-1.5 border-l border-slate-200 dark:border-slate-800">
-              <div className="hidden lg:block text-right">
-                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 leading-none">
+            <div className="flex items-center space-x-2 pl-1.5 border-l border-slate-200 dark:border-slate-800">
+              <img
+                src={currentUser.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser.name)}`}
+                alt={currentUser.name}
+                referrerPolicy="no-referrer"
+                className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-700 shrink-0 object-cover"
+              />
+              <div className="hidden lg:block text-left pl-1">
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-150 leading-none">
                   {currentUser.name}
                 </p>
-                <p className="text-[9px] uppercase tracking-wider font-mono text-slate-500 mt-1">
-                  {currentUser.role}
+                <p className="text-[9px] font-semibold text-slate-400 mt-1 uppercase font-mono">
+                  Standard Member
                 </p>
               </div>
               <button
                 id="sign-out-btn"
                 onClick={() => setCurrentUser(null)}
-                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
+                className="p-1.5 ml-1 text-slate-400 hover:text-red-500 rounded-lg transition-all"
                 title={t.signOut}
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4.5 w-4.5" />
               </button>
             </div>
           ) : (

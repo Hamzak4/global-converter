@@ -4,6 +4,7 @@ import path from 'path';
 import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { db } from './src/server/db.ts';
+import { sendOtpEmail, sendResetEmail, simulatedMailbox } from './src/server/email.ts';
 
 async function startServer() {
   const app = express();
@@ -91,11 +92,20 @@ async function startServer() {
     return;
   });
 
+  app.get('/api/auth/dev-mailbox', (_req, res) => {
+    res.json({ emails: simulatedMailbox });
+  });
+
   app.post('/api/auth/register', async (req, res) => {
     try {
       const { name, username, password, role } = req.body;
       if (!name || !username || !password) {
         res.status(400).json({ error: 'Name, email, and password are all required.' });
+        return;
+      }
+
+      if (password.length < 8) {
+        res.status(400).json({ error: 'Password security requirement: Must be at least 8 characters long.' });
         return;
       }
 
@@ -114,6 +124,9 @@ async function startServer() {
         password_plain: password,
         role: assignedRole
       });
+
+      // Send actual SMTP email or write simulated email
+      await sendOtpEmail(newUser.username, newUser.name, newUser.verification_code || '');
 
       res.status(201).json({
         success: true,
@@ -145,26 +158,48 @@ async function startServer() {
             username: found.username,
             role: found.role,
             name: found.name,
-            is_verified: true
+            is_verified: true,
+            avatar_url: found.avatar_url
           } : null
         });
       } else {
-        res.status(400).json({ error: 'Incorrect 6-digit confirmation code.' });
+        res.status(400).json({ error: 'Incorrect or expired 6-digit confirmation code.' });
       }
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Verification execution fault' });
     }
   });
 
+  app.post('/api/auth/resend-code', async (req, res) => {
+    try {
+      const { username } = req.body;
+      if (!username) {
+        res.status(400).json({ error: 'Username/email is required to resend verification code' });
+        return;
+      }
+
+      const code = await db.resendOtpCode(username);
+      if (code) {
+        const found = db.getUsers().find(u => u.username.toLowerCase() === username.toLowerCase());
+        await sendOtpEmail(username, found ? found.name : 'User', code);
+        res.json({ success: true, message: 'A secure new verification code has been dispatched to your email address.' });
+      } else {
+        res.status(404).json({ error: 'Username not found.' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Resend failed' });
+    }
+  });
+
   app.post('/api/auth/google', async (req, res) => {
     try {
-      const { name, email, googleId } = req.body;
+      const { name, email, googleId, avatarUrl } = req.body;
       if (!email || !name || !googleId) {
         res.status(400).json({ error: 'Google profiles must provide name, email, and googleId' });
         return;
       }
 
-      const user = await db.googleAuth(name, email, googleId);
+      const user = await db.googleAuth(name, email, googleId, avatarUrl);
       res.json({
         success: true,
         message: 'Authenticated via Google account!',
@@ -173,11 +208,114 @@ async function startServer() {
           username: user.username,
           role: user.role,
           name: user.name,
-          is_verified: true
+          is_verified: true,
+          avatar_url: user.avatar_url
         }
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Google Auth error' });
+    }
+  });
+
+  app.post('/api/auth/neon-connect', async (req, res) => {
+    try {
+      const { dbUrl } = req.body;
+      if (!dbUrl) {
+        res.status(400).json({ error: 'Neon Connection string (DATABASE_URL) is required.' });
+        return;
+      }
+
+      if (!dbUrl.startsWith('postgres://') && !dbUrl.startsWith('postgresql://')) {
+        res.status(400).json({ error: 'Invalid URL scheme. Must begin with postgresql:// or postgres://' });
+        return;
+      }
+
+      const connection = await db.switchToDynamicNeon(dbUrl);
+      res.json({
+        success: true,
+        message: `Successfully authenticated with Neon PostgreSQL! Connected to project host: ${connection.host}`,
+        connection,
+        user: {
+          id: 9999,
+          username: `admin@${connection.host}`,
+          role: 'admin',
+          name: `Neon Administrator (${connection.dbname})`,
+          is_verified: true,
+          avatar_url: `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(connection.host)}`
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to authenticate with Neon Database. Check connection parameters.' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password-request', async (req, res) => {
+    try {
+      const { username } = req.body;
+      if (!username) {
+        res.status(400).json({ error: 'Email address is required.' });
+        return;
+      }
+
+      const code = await db.generatePasswordResetOtp(username);
+      if (code) {
+        await sendResetEmail(username, code);
+        res.json({ success: true, message: 'Dispatched 6-digit password reset OTP to your email address!' });
+      } else {
+        res.status(404).json({ error: 'Email address not found in our directory.' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Password request failure.' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password-verify', async (req, res) => {
+    try {
+      const { username, code } = req.body;
+      if (!username || !code) {
+        res.status(400).json({ error: 'Email address and 6-digit confirmation code are required.' });
+        return;
+      }
+
+      const found = db.getUsers().find(
+        u => u.username.toLowerCase() === username.toLowerCase() && u.reset_code === code
+      );
+
+      if (found) {
+        if (found.otp_expires_at && new Date() > new Date(found.otp_expires_at)) {
+          res.status(400).json({ error: 'This secure code has expired. Please request another reset.' });
+          return;
+        }
+        res.json({ success: true, message: 'Password recovery code authenticated successfully!' });
+      } else {
+        res.status(400).json({ error: 'Invalid reset code. Check your inbox and try again.' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Verification failure' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password-reset', async (req, res) => {
+    try {
+      const { username, code, newPassword } = req.body;
+      if (!username || !code || !newPassword) {
+        res.status(400).json({ error: 'All fields are required.' });
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+        return;
+      }
+
+      const ok = await db.applyPasswordResetWithOtp(username, code, newPassword);
+      if (ok) {
+        res.json({ success: true, message: 'Password updated successfully! You can now login.' });
+      } else {
+        res.status(400).json({ error: 'Recovery failed. Expired code or wrong details.' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Reset failure' });
     }
   });
 
