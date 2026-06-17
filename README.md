@@ -46,24 +46,6 @@ Article & FAQ management
 Exchange rate updates
 Google Analytics integration ready
 
-converthub/
-├── src/
-│   ├── components/          # React components
-│   │   ├── CurrencyConverter.tsx
-│   │   ├── UnitConverter.tsx
-│   │   ├── AdminPanel.tsx
-│   │   ├── Header.tsx & Footer.tsx
-│   ├── server/
-│   │   └── db.ts           # Database layer
-│   ├── App.tsx             # Main app component
-│   ├── types.ts            # TypeScript interfaces
-│   ├── data.ts             # Translations & constants
-│   └── index.css           # Global styles
-├── server.ts               # Express server
-├── db.json                 # Local database
-├── package.json
-├── vite.config.ts
-└── tsconfig.json
 
 Key Dependencies
 Package	Version	Purpose
@@ -76,25 +58,7 @@ lucide-react	0.395.0	Icons
 motion	11.11.17	Animations
 recharts	2.13.3	Charts
 
-┌─────────────────────────────────────┐
-│   React Frontend (SPA)              │
-│  ├─ Converters                      │
-│  ├─ Guides/Articles                 │
-│  ├─ Admin Panel                     │
-│  └─ Language/Theme Toggle           │
-└──────────────┬──────────────────────┘
-               │ REST API Calls
-┌──────────────▼──────────────────────┐
-│   Express Backend Server            │
-│  ├─ /api/convert                    │
-│  ├─ /api/auth                       │
-│  ├─ /api/admin/*                    │
-│  └─ Static asset serving            │
-└──────────────┬──────────────────────┘
-               │
-       ┌───────┴─────────┐
-       ▼                 ▼
-    MySQL           db.json
+
   (Production)    (Development)
 
 npm run dev      # Start development server on port 3000
