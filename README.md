@@ -59,12 +59,6 @@ motion	11.11.17	Animations
 recharts	2.13.3	Charts
 
 
-  (Production)    (Development)
-
-npm run dev      # Start development server on port 3000
-npm run build    # Build for production
-npm start        # Run production build
-npm run lint     # TypeScript type checking
 
 
 <img width="950" height="440" alt="Screenshot 2026-06-17 154659" src="https://github.com/user-attachments/assets/5d5a6bbb-42d9-4a9d-8925-a3725a598766" />
